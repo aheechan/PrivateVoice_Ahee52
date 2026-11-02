@@ -246,6 +246,11 @@ class AquaTTSEngine(TTSEngine):
             arr = np.asarray(audio, dtype=np.float32).reshape(-1)
             if arr.size == 0:
                 continue
+            # v4 上游返回的是 int16 量纲的 float（峰值到 1e4 量级），
+            # 不归一化会直接把播放端怼到 0 dBFS 削波（听起来就是"底噪/糊"）。
+            peak = float(np.max(np.abs(arr)))
+            if peak > 2.0:
+                arr = arr / 32768.0
             if first:
                 self.last_ttfp_ms = (time.perf_counter() - t0) * 1000.0
                 first = False
