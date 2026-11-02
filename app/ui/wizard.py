@@ -564,6 +564,12 @@ class TrainPage(QWizardPage):
         self.progress.setRange(0, 100)
         root.addWidget(self.progress)
 
+        # 显存提示：语音模型常驻会占 2-4GB，训练期间容易 OOM，先让用户手动释放
+        self.gpu_tip = QLabel("")
+        self.gpu_tip.setWordWrap(True)
+        self.gpu_tip.setObjectName("Muted")
+        root.addWidget(self.gpu_tip)
+
         self.status = QLabel("尚未开始")
         root.addWidget(self.status)
 
@@ -602,7 +608,22 @@ class TrainPage(QWizardPage):
             self.plan_label.setText(str(exc))
         if not self._done and self._thread is None:
             self.progress.setValue(0)
+        self._update_gpu_tip(info)
         self.completeChanged.emit()
+
+    def _update_gpu_tip(self, info) -> None:
+        """第 5 步的显存提醒：建议先回主界面点「释放模型」。"""
+        try:
+            need = 8 if info.total_gb >= 20 else 6
+            hint = (f"当前可用显存 {info.free_gb:.1f} GB（训练建议 ≥ {need} GB）。\n"
+                    "如果主界面已经加载了语音模型，建议先切回主界面点「释放模型」腾出显存，"
+                    "再回来开始训练；训练完成后点「加载模型」或重启软件即可恢复。")
+            warn = info.free_gb < need
+        except Exception:
+            hint = ("训练前建议先在主界面点「释放模型」腾出显存，训练完成后再点「加载模型」。")
+            warn = False
+        self.gpu_tip.setText(("⚠️ " if warn else "") + hint)
+        self.gpu_tip.setStyleSheet("color:#e0a34a;" if warn else "")
 
     def _toggle_log(self) -> None:
         visible = self.log.isVisible()
