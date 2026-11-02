@@ -179,6 +179,9 @@ class Pipeline:
             if key != self._tts_key:
                 self._tts.load(*key)
                 self._tts_key = key
+                self._emit("info", text=f"TTS 引擎已加载：{Path(key[0]).name}")
+            else:
+                self._emit("info", text="TTS 引擎复用（已加载）")
             return self._tts
 
     def warmup(self) -> dict[str, Any]:
@@ -198,9 +201,10 @@ class Pipeline:
             ref = str(self.store.dir_of(ch.id) /
                       (ch.voice.get("reference") or "reference.wav"))
             t2 = time.perf_counter()
-            for _ in engine.synthesize_stream("你好。", ref,
-                                              ch.voice.get("reference_text", "")):
-                pass
+            with self._tts_lock:      # 和正常合成串行，避免两个线程同时用同一个引擎
+                for _ in engine.synthesize_stream("你好。", ref,
+                                                  ch.voice.get("reference_text", "")):
+                    pass
             out["tts_prime_s"] = round(time.perf_counter() - t2, 2)
         except Exception as exc:  # noqa: BLE001
             out["tts_error"] = str(exc)
@@ -425,7 +429,7 @@ class Pipeline:
 
             # ---- 等第一块音频 ----
             # 注意：_finish_tts 只是发信号，合成还在后台跑，这里必须等首块
-            deadline = time.perf_counter() + 12.0
+            deadline = time.perf_counter() + 25.0
             while self._t_tts == 0.0 and not cancel.is_set():
                 if time.perf_counter() > deadline:
                     break
@@ -433,8 +437,9 @@ class Pipeline:
                 if t is not None and not t.is_alive():
                     break
                 time.sleep(0.02)
-            if self._t_tts == 0.0:
-                self._emit("error", text="回复合成失败")
+            if self._t_tts == 0.0 and not cancel.is_set():
+                self._emit("error", text="语音合成超时，已重置引擎，请再说一次")
+                self._reset_tts()
                 m.error = "no_audio"
                 self.metrics.append(m)
                 self._set_state(State.IDLE)
@@ -473,6 +478,10 @@ class Pipeline:
     # -- TTS 工作线程 ---------------------------------------------------
     def _start_tts_worker(self) -> None:
         self._finish_tts_quick()
+        if self._tts_thread is not None and self._tts_thread.is_alive():
+            self._emit("error", text="上一轮语音还没合成完，请稍等一秒再说")
+            self._tts_queue = None
+            return
         self._tts_stop.clear()
         self._tts_queue = queue.Queue(
             maxsize=max(1, int(self.config.get("pipeline.prefetch_max", 2))))
@@ -517,21 +526,46 @@ class Pipeline:
                 return
             if self._cancel.is_set():
                 return
+            t_start = time.perf_counter()
+            chunks = 0
+            gen = None
             try:
                 with self._tts_lock:
                     engine = self._ensure_tts()
                     self._set_state(State.SPEAKING, text[:20])
-                    for chunk in engine.synthesize_stream(text, ref, ref_text):
-                        if self._cancel.is_set():
-                            return
-                        if self._t_tts == 0.0:
-                            self._t_tts = time.perf_counter()
-                        self.player.push(chunk.samples, chunk.samplerate)
+                    gen = engine.synthesize_stream(text, ref, ref_text)
+                    try:
+                        for chunk in gen:
+                            if self._cancel.is_set():
+                                self._emit("info",
+                                           text=f"TTS 被取消（{text[:12]}…，"
+                                                f"{chunks} 块 / "
+                                                f"{time.perf_counter()-t_start:.1f}s）")
+                                break
+                            if self._t_tts == 0.0:
+                                self._t_tts = time.perf_counter()
+                            chunks += 1
+                            self.player.push(chunk.samples, chunk.samplerate)
+                    finally:
+                        # 关键：中断时显式关掉生成器，让上游 finally 释放
+                        # CUDA Graph / KV 状态；不关的话下一句会在推理里卡死。
+                        if gen is not None:
+                            try:
+                                gen.close()
+                            except Exception:
+                                pass
+                            gen = None
+                if self._cancel.is_set():
+                    return
                 self.player.push_gap()
                 failed = 0
+                self._emit("info", text=f"TTS 完成：{text[:12]}… "
+                                        f"{chunks} 块 / {time.perf_counter()-t_start:.1f}s")
             except Exception as exc:  # noqa: BLE001
                 failed += 1
                 self._emit("error", text=f"TTS 失败（{failed}）：{exc}")
+                if failed >= 2:
+                    self._reset_tts()
 
     def _finish_tts(self) -> None:
         """只发“没有更多句子”的信号，不阻塞——合成还要继续跑，播放同时进行。"""
@@ -553,6 +587,26 @@ class Pipeline:
             t.join(timeout=timeout)
         self._tts_thread = None
 
+    def _reset_tts(self) -> None:
+        """把语音引擎整个丢掉，下次用到时重新加载。
+
+        用于 TTS 卡死/连续失败后自救：v3 LoRA 的 CUDA Graph 一旦状态坏掉，
+        继续复用只会一直失败，重载（约 12s）比一直报错好。
+        """
+        t = self._tts_thread
+        if t is not None and t.is_alive():
+            self._emit("info", text="TTS 线程仍在运行，暂不重载引擎")
+            return
+        with self._tts_lock:
+            try:
+                if self._tts is not None:
+                    self._tts.unload()
+            except Exception:
+                pass
+            self._tts = None
+            self._tts_key = ("", "")
+        self._emit("info", text="语音引擎已重置，下一轮会重新加载")
+
     def _finish_tts_quick(self) -> None:
         self._tts_stop.set()
         q = self._tts_queue
@@ -563,7 +617,9 @@ class Pipeline:
                 pass
         t = self._tts_thread
         if t is not None and t.is_alive():
-            t.join(timeout=3)
+            t.join(timeout=10)
+        if t is not None and t.is_alive():
+            self._emit("info", text="TTS 线程 10 秒内没退出，标记引擎为待重置")
         self._tts_thread = None
         self._tts_queue = None
 
