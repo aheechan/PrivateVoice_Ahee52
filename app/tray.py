@@ -13,18 +13,23 @@ from PySide6.QtWidgets import QMenu, QSystemTrayIcon, QWidget
 
 STATE_COLORS = {
     "idle": "#4A90D9",
-    "recording": "#E5534B",
+    "listening": "#E5534B",
+    "transcribing": "#9B6BD6",
     "thinking": "#B07CD6",
     "speaking": "#3FB950",
     "training": "#D29922",
+    # 兼容 Stage 2 的旧名字
+    "recording": "#E5534B",
 }
 
 STATE_LABELS = {
     "idle": "待机",
-    "recording": "录音中",
+    "listening": "听着",
+    "transcribing": "识别中",
     "thinking": "思考中",
     "speaking": "说话中",
     "training": "训练中",
+    "recording": "录音中",
 }
 
 
@@ -64,6 +69,8 @@ class TrayIcon(QSystemTrayIcon):
     manage_characters = Signal()
     open_settings = Signal()
     open_diagnostics = Signal()
+    open_llm_settings = Signal()
+    retry_last = Signal()
     quit_requested = Signal()
     character_selected = Signal(str)
 
@@ -71,15 +78,20 @@ class TrayIcon(QSystemTrayIcon):
         super().__init__(parent)
         self._state = "idle"
         self._progress_text = ""
+        self._can_retry = False
         self.setIcon(make_icon("idle"))
         self.setToolTip("VoiceLab — 待机")
 
         self._menu = QMenu()
         self._char_menu = self._menu.addMenu("当前角色")
         self._char_menu.setEnabled(False)
+        self._retry_action = self._menu.addAction("重试上一轮", self.retry_last.emit)
+        self._retry_action.setEnabled(False)
+        self._menu.addSeparator()
         self._menu.addAction("新建角色…", self.new_character.emit)
         self._menu.addAction("角色管理…", self.manage_characters.emit)
         self._menu.addSeparator()
+        self._menu.addAction("大模型设置…", self.open_llm_settings.emit)
         self._menu.addAction("设置…", self.open_settings.emit)
         self._menu.addAction("诊断…", self.open_diagnostics.emit)
         self._menu.addSeparator()
@@ -130,6 +142,11 @@ class TrayIcon(QSystemTrayIcon):
         for act in self._menu.actions():
             if act.text().startswith("新建角色"):
                 act.setEnabled(not busy)
+        self._retry_action.setEnabled(not busy and self._can_retry)
+
+    def set_can_retry(self, can: bool) -> None:
+        self._can_retry = bool(can)
+        self._retry_action.setEnabled(self._can_retry)
 
     def _on_activated(self, reason: QSystemTrayIcon.ActivationReason) -> None:
         if reason == QSystemTrayIcon.Trigger:

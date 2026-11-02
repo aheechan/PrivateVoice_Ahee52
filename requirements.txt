@@ -235,3 +235,10 @@ sounddevice==0.5.6
 pyloudnorm==0.2.0
 silero-vad==6.2.3
 pytest==9.2.0
+
+# ---------------------------------------------------------------------------
+# Stage 3 未新增依赖（2026-11-02）
+#   httpx 0.28.1 / sounddevice 0.5.6 / numpy 1.26.4 已在 Stage 2 环境内
+#   全局热键用 ctypes 直调 user32（RegisterHotKey + GetAsyncState 轮询松开），
+#   不引入 pywin32；LLM 用 httpx 自己解析 SSE，不引入 openai SDK。
+# ---------------------------------------------------------------------------

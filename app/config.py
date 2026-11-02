@@ -153,6 +153,61 @@ DEFAULT_CONFIG: dict[str, Any] = {
             "别急着走，再陪我坐一会儿吧。",
         ],
     },
+    # ---------------- Stage 3：对话链路 ----------------
+    "asr": {
+        "model": "paraformer-zh",
+        "device": "cuda",
+        "trim_head_ms": 100,
+        "trim_tail_ms": 100,
+        "silence_floor_db": -45.0,
+        "min_chars": 1,
+        "max_sec": 30.0,
+        "warmup": True,
+    },
+    "hotkey": {
+        # 需求方指定 shift+a。注意：RegisterHotKey 会全局截走 Shift+A，
+        # 在别的程序里打大写 A 也会触发；设置页可随时改。
+        "spec": "shift+a",
+        "poll_ms": 20,
+        "min_hold_ms": 150,
+    },
+    "llm": {
+        "history_turns": 12,
+        "token_budget": 1500,
+        "connect_timeout_ms": 3000,
+        "first_token_timeout_ms": 5000,
+        "total_timeout_ms": 30000,
+        "disable_thinking": True,
+        # 关闭思考模式：默认注入这段到 extra_body，每个 provider 可覆盖
+        "thinking_extra_body": {"chat_template_kwargs": {"enable_thinking": False}},
+        "fallback_text": "我这会儿有点接不上话。",
+        "providers": [
+            {
+                "id": "local-qwen35-9b",
+                "name": "本地 Qwen3.5-9B",
+                "base_url": "http://127.0.0.1:8082/v1",
+                "api_key_enc": "",
+                "model": "Qwen3.5-9B",
+                "priority": 10,
+                "enabled": True,
+                "timeout_ms": 30000,
+                "extra_body": {},
+                "supports_stream": True,
+            },
+        ],
+    },
+    "player": {
+        "blocksize_ms": 30,
+        "sentence_gap_ms": 80,
+        "limiter_dbtp": -1.0,
+        "buffer_chunks": 64,
+    },
+    "pipeline": {
+        "min_sentence_chars": 6,
+        "max_sentence_chars": 40,
+        "prefetch_max": 2,
+        "max_tts_fail_streak": 2,
+    },
     "ui": {
         "hotkey": "ctrl+alt+space",        "language": "zh",
         "autostart": False,

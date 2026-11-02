@@ -11,12 +11,13 @@ from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
-    QDialog, QDialogButtonBox, QFormLayout, QGroupBox, QHBoxLayout, QLabel,
-    QPlainTextEdit, QPushButton, QVBoxLayout,
+    QDialog, QDialogButtonBox, QFormLayout, QGroupBox, QHBoxLayout, QHeaderView, QLabel,
+    QPlainTextEdit, QPushButton, QTableWidget, QTableWidgetItem, QVBoxLayout,
 )
 
 from app.config import Config
 from app.core import train
+from app.core.metrics import MetricsStore
 
 
 class DiagnosticsDialog(QDialog):
@@ -44,6 +45,22 @@ class DiagnosticsDialog(QDialog):
             self.labels[key] = lab
             form.addRow(title, lab)
         root.addWidget(gb)
+
+        # 最近 20 轮延迟
+        gb2 = QGroupBox("最近 20 轮延迟")
+        v2 = QVBoxLayout(gb2)
+        self.summary = QLabel("还没有对话记录")
+        self.summary.setStyleSheet("color:#333;")
+        v2.addWidget(self.summary)
+        self.turns = QTableWidget(0, 7)
+        self.turns.setHorizontalHeaderLabels(
+            ["时间", "ASR(ms)", "LLM首token(ms)", "TTS首包(ms)", "e2e(ms)",
+             "播放(s)", "provider"])
+        self.turns.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.turns.horizontalHeader().setStretchLastSection(True)
+        self.turns.setMinimumHeight(180)
+        v2.addWidget(self.turns)
+        root.addWidget(gb2)
 
         self.log = QPlainTextEdit()
         self.log.setReadOnly(True)
@@ -77,6 +94,34 @@ class DiagnosticsDialog(QDialog):
         self.labels["python"].setText(f"{platform.python_version()} · {sys.executable}")
         self.labels["commit"].setText(self._commit())
         self.labels["ttfp"].setText(self._ttfp())
+        self._load_turns()
+
+    def _load_turns(self) -> None:
+        store = MetricsStore(Path(self.config.path_of("logs")) / "turns.jsonl")
+        rows = store.recent(20)
+        summary = store.summary(20)
+        parts = []
+        for key, name in (("asr_ms", "ASR"), ("llm_ttft_ms", "LLM"),
+                          ("tts_ttfp_ms", "TTS"), ("e2e_ms", "e2e")):
+            s = summary.get(key) or {}
+            if s.get("n"):
+                parts.append(f"{name} p50={s['p50']:.0f} / p95={s['p95']:.0f} ms")
+        self.summary.setText(
+            f"共 {summary.get('count', 0)} 轮 · " + " · ".join(parts)
+            if parts else "还没有对话记录")
+        self.turns.setRowCount(len(rows))
+        for r, row in enumerate(rows):
+            ts = str(row.get("ts", ""))[11:19]
+            vals = [ts,
+                    row.get("asr_ms"), row.get("llm_ttft_ms"),
+                    row.get("tts_ttfp_ms"), row.get("e2e_ms"),
+                    row.get("play_ms"), row.get("provider", "")]
+            for c, v in enumerate(vals):
+                if isinstance(v, (int, float)):
+                    v = f"{v:.0f}"
+                self.turns.setItem(r, c, QTableWidgetItem("—" if v in (None, "") else str(v)))
+        self.turns.resizeColumnsToContents()
+        self.turns.horizontalHeader().setStretchLastSection(True)
 
     def _driver(self) -> str:
         try:

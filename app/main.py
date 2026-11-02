@@ -1,7 +1,7 @@
-"""程序入口：单实例、托盘、日志、硬件门禁。
+"""程序入口：单实例、托盘、全局热键、对话管线、日志、硬件门禁。
 
-本阶段不实现对话与热键，只保证：托盘常驻、窗口关闭即最小化、训练期间托盘
-显示进度且无法启动对话。
+Stage 3 在 Stage 2 的托盘骨架上接通了
+「按住热键 → 录音 → ASR → LLM → 切句 → TTS → 播放」，并支持随时打断。
 """
 from __future__ import annotations
 
@@ -9,10 +9,10 @@ import logging
 import logging.handlers
 import os
 import sys
+import threading
 from pathlib import Path
 
-from PySide6.QtCore import QCoreApplication, Qt, QTimer
-from PySide6.QtGui import QIcon
+from PySide6.QtCore import QObject, Qt, Signal
 from PySide6.QtNetwork import QLocalServer, QLocalSocket
 from PySide6.QtWidgets import QApplication, QMessageBox, QSystemTrayIcon
 
@@ -23,6 +23,8 @@ if str(ROOT) not in sys.path:
 from app.config import Config  # noqa: E402
 from app.core import train  # noqa: E402
 from app.core.characters import CharacterStore  # noqa: E402
+from app.core.hotkey import HotkeyListener  # noqa: E402
+from app.core.pipeline import Pipeline, PipelineEvent  # noqa: E402
 from app.tray import TrayIcon, make_icon  # noqa: E402
 
 APP_NAME = "VoiceLab"
@@ -47,20 +49,42 @@ def setup_logging(config: Config) -> logging.Logger:
     return logging.getLogger("voicelab")
 
 
-class MainController:
-    """把托盘、窗口、配置、角色库串起来。"""
+class Bridge(QObject):
+    """把工作线程里的事件搬回 GUI 线程。"""
 
-    def __init__(self, app: QApplication, config: Config):
+    stateChanged = Signal(str, str)
+    userText = Signal(str)
+    replyDelta = Signal(str)
+    info = Signal(str)
+    error = Signal(str)
+    turnDone = Signal(str)
+    pressed = Signal()
+    released = Signal()
+    hotkeyError = Signal(str)
+
+
+class MainController(QObject):
+    def __init__(self, app: QApplication, config: Config, parent=None):
+        super().__init__(parent)
         self.app = app
         self.config = config
         self.log = logging.getLogger("voicelab.controller")
         self.store = CharacterStore(config.path_of("characters"))
 
+        self.bridge = Bridge()
+        self.bridge.pressed.connect(self._on_press)
+        self.bridge.released.connect(self._on_release)
+        self.bridge.stateChanged.connect(self._on_state)
+        self.bridge.error.connect(self._on_error)
+        self.bridge.info.connect(lambda t: self.log.info("pipeline: %s", t))
+
         self.tray = TrayIcon()
         self.tray.new_character.connect(self.open_wizard)
         self.tray.manage_characters.connect(self.open_manager)
         self.tray.open_settings.connect(self.open_settings)
+        self.tray.open_llm_settings.connect(self.open_llm_settings)
         self.tray.open_diagnostics.connect(self.open_diagnostics)
+        self.tray.retry_last.connect(self.retry_last)
         self.tray.quit_requested.connect(self.quit)
         self.tray.character_selected.connect(self.select_character)
         self.tray.show()
@@ -68,32 +92,156 @@ class MainController:
         self._wizard = None
         self._manager = None
         self._settings = None
+        self._llm_settings = None
         self._diagnostics = None
+        self.training = False
+        self.pipeline: Pipeline | None = None
+        self.hotkey: HotkeyListener | None = None
 
         self.refresh_characters()
+        self._ensure_pipeline()
+        self._start_hotkey()
         self.set_state("idle")
-
-    # -- 状态 ----------------------------------------------------------
-    def set_state(self, state: str, detail: str = "") -> None:
-        self.tray.set_state(state, detail)
-
-    def set_training(self, busy: bool, detail: str = "") -> None:
-        self.set_state("training" if busy else "idle", detail)
-        self.tray.set_busy(busy)
-        if detail:
-            self.tray.set_progress(detail)
+        threading.Thread(target=self._warmup, daemon=True, name="vlab-warmup").start()
 
     # -- 角色 ----------------------------------------------------------
+    def _current_character(self):
+        ready = [c for c in self.store.list() if c.status == "ready"]
+        if not ready:
+            return None
+        cid = self.store.active_id
+        return next((c for c in ready if c.id == cid), ready[0])
+
     def refresh_characters(self) -> None:
         chars = self.store.list()
         pairs = [(c.id, c.name) for c in chars if c.status == "ready"]
         self.tray.set_characters(pairs, self.store.active_id)
 
+    def _ensure_pipeline(self) -> Pipeline | None:
+        ch = self._current_character()
+        if ch is None:
+            return None
+        if self.pipeline is None:
+            self.pipeline = Pipeline(self.config, self.store, ch,
+                                     on_event=self._on_pipeline_event)
+            self.store.set_active(ch.id)
+        return self.pipeline
+
     def select_character(self, cid: str) -> None:
+        try:
+            ch = self.store.get(cid)
+        except KeyError:
+            return
         self.store.set_active(cid)
+        if self.pipeline is not None:
+            self.pipeline.set_character(ch)
         self.refresh_characters()
-        name = self.store.get(cid).name
-        self.tray.notify("已切换角色", f"当前角色：{name}")
+        self.tray.notify("已切换角色", f"当前角色：{ch.name}")
+        self.set_state("idle", ch.name)
+
+    # -- 热键 ----------------------------------------------------------
+    def _start_hotkey(self) -> None:
+        spec = str(self.config.get("hotkey.spec", "shift+a"))
+        try:
+            self.hotkey = HotkeyListener(
+                spec,
+                on_press=self.bridge.pressed.emit,
+                on_release=self.bridge.released.emit,
+                poll_ms=int(self.config.get("hotkey.poll_ms", 20)),
+                min_hold_ms=int(self.config.get("hotkey.min_hold_ms", 150)),
+                on_error=self.bridge.hotkeyError.emit,
+            )
+            self.hotkey.start()
+            self.bridge.hotkeyError.connect(self._on_hotkey_error)
+            if self.hotkey.registered:
+                self.log.info("热键 %s 已注册", self.hotkey.spec.label)
+                if self.hotkey.spec.mods in (0, 4) and self.hotkey.spec.vk < 0x5B:
+                    self.tray.notify(
+                        "热键提示",
+                        f"当前热键 {self.hotkey.spec.label} 会全局拦截该按键；"
+                        f"在其它程序里输入同样的组合也会触发对话。可在设置里更改。", 6000)
+            else:
+                self._on_hotkey_error("热键注册超时")
+        except Exception as exc:  # noqa: BLE001
+            self._on_hotkey_error(str(exc))
+
+    def _on_hotkey_error(self, message: str) -> None:
+        self.log.error("热键错误：%s", message)
+        self.tray.notify("热键不可用", message, 8000)
+
+    def _on_press(self) -> None:
+        if self.training:
+            self.tray.notify("训练进行中", "等训练结束再说话")
+            return
+        pipe = self._ensure_pipeline()
+        if pipe is None:
+            self.tray.notify("还没有角色", "先新建一个角色再来找我")
+            return
+        pipe.press()
+
+    def _on_release(self) -> None:
+        if self.pipeline is not None:
+            self.pipeline.release()
+
+    # -- pipeline 事件 --------------------------------------------------
+    def _on_pipeline_event(self, ev: PipelineEvent) -> None:
+        if ev.kind == "state":
+            self.bridge.stateChanged.emit(ev.state, ev.detail)
+        elif ev.kind == "user_text":
+            self.bridge.userText.emit(ev.text)
+        elif ev.kind == "reply_delta":
+            self.bridge.replyDelta.emit(ev.text)
+        elif ev.kind == "error":
+            self.bridge.error.emit(ev.text)
+        elif ev.kind == "info":
+            self.bridge.info.emit(ev.text)
+        elif ev.kind == "turn_done":
+            self.bridge.turnDone.emit(ev.text)
+
+    def _on_state(self, state: str, detail: str) -> None:
+        self.tray.set_state(state, detail)
+        if state == "idle":
+            ch = self._current_character()
+            if ch is not None and self.pipeline is not None:
+                last = self.pipeline.history.last_user()
+                self.tray.set_can_retry(bool(last))
+
+    def _on_error(self, text: str) -> None:
+        self.log.warning("pipeline error: %s", text)
+        self.tray.notify("出了点问题", text, 5000)
+
+    # -- 预热 ----------------------------------------------------------
+    def _warmup(self) -> None:
+        pipe = self.pipeline
+        if pipe is None:
+            return
+        try:
+            info = pipe.warmup()
+            self.log.info("预热完成：%s", info)
+        except Exception as exc:  # noqa: BLE001
+            self.log.warning("预热失败：%s", exc)
+
+    # -- 菜单动作 -------------------------------------------------------
+    def retry_last(self) -> None:
+        pipe = self._ensure_pipeline()
+        if pipe is None:
+            return
+        last = pipe.history.last_user()
+        if not last:
+            self.tray.notify("没有上一轮", "先说一句话吧")
+            return
+        pipe.submit_text(last)
+
+    def set_training(self, busy: bool, detail: str = "") -> None:
+        self.training = busy
+        self.tray.set_busy(busy)
+        if self.pipeline is not None:
+            self.pipeline.set_training(busy)
+        if busy:
+            self.tray.set_state("training", detail)
+            self.tray.set_progress(detail)
+        else:
+            self.tray.set_state("idle")
 
     # -- 窗口 ----------------------------------------------------------
     def open_wizard(self) -> None:
@@ -113,6 +261,7 @@ class MainController:
             self._wizard.deleteLater()
             self._wizard = None
         self.refresh_characters()
+        self._ensure_pipeline()
 
     def open_manager(self) -> None:
         from app.ui.char_manager import CharacterManager
@@ -145,7 +294,26 @@ class MainController:
 
     def _on_settings_applied(self) -> None:
         self.config.save()
-        self.log.info("设置已保存")
+        self.log.info("设置已保存，热键重新注册")
+        if self.hotkey is not None:
+            self.hotkey.stop()
+        self._start_hotkey()
+        if self.pipeline is not None:
+            self.pipeline.player.set_device(self.config.audio.get("output_device"))
+            self.pipeline.recorder.device = self.config.audio.get("input_device")
+
+    def open_llm_settings(self) -> None:
+        from app.ui.settings_llm import SettingsLLM
+
+        if self._llm_settings is None:
+            self._llm_settings = SettingsLLM(self.config)
+            self._llm_settings.closed.connect(self._on_llm_closed)
+        self._llm_settings.refresh()
+        self._llm_settings.show()
+        self._llm_settings.raise_()
+
+    def _on_llm_closed(self) -> None:
+        self._llm_settings = None
 
     def open_diagnostics(self) -> None:
         from app.ui.diagnostics import DiagnosticsDialog
@@ -160,11 +328,20 @@ class MainController:
     def _on_diag_closed(self) -> None:
         self._diagnostics = None
 
-    # -- 退出 ----------------------------------------------------------
+    # -- 状态 ----------------------------------------------------------
+    def set_state(self, state: str, detail: str = "") -> None:
+        self.tray.set_state(state, detail)
+
     def quit(self) -> None:
         self.log.info("退出")
-        self.tray.hide()
-        self.app.quit()
+        try:
+            if self.hotkey is not None:
+                self.hotkey.stop()
+            if self.pipeline is not None:
+                self.pipeline.close()
+        finally:
+            self.tray.hide()
+            self.app.quit()
 
 
 def _already_running() -> bool:
@@ -231,7 +408,7 @@ def main() -> int:
     config = Config.load()
     config.bootstrap()
     log = setup_logging(config)
-    log.info("VoiceLab Stage2 启动，工作目录 %s", ROOT)
+    log.info("VoiceLab Stage3 启动，工作目录 %s", ROOT)
 
     if _already_running():
         log.info("已有实例在运行，退出")
