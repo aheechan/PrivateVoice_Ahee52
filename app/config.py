@@ -114,6 +114,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "save_tts": True,
         "save_tts_dir": "results/tts",
         "keep_tts": 200,
+        "tts_ttl_minutes": 10,      # 临时音频只保留 10 分钟
         "target_sr": 48000,
         "clip_sr": 24000,
         "target_lufs": -23.0,
@@ -163,12 +164,14 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "tts": {
         # Stage 1 实测协议，试听与复测必须一致（见 docs/stage1-baseline.md）
         "how_to_cut": "按标点符号切",
-        # top_k=5 太贪婪：v4 遇到「嗯 / 哦 / 唔」这类语气词会把元音拖长甚至重复
-        # （实测「唔，那就早点睡。」放大到 11.5s，top_k=15 时 2.2s）
-        "top_k": 15,
-        "top_p": 0.95,
-        "temperature": 0.7,
-        "max_sec_per_char": 0.55,   # 超过这个时长就当作异常延音，截断保护
+        # 实测这组是音质最好的一版（top_k=15/T=0.7 会带来更多噪点与延音）
+        "top_k": 5,
+        "top_p": 1.0,
+        "temperature": 0.6,
+        # 异常延音保护：超长时先用 top_k=15 重试一次，仍超长才截断
+        "retry_top_k": 15,
+        "retry_temperature": 0.7,
+        "max_sec_per_char": 0.55,
         "speed": 1.1,
         "sample_steps": 4,
         "chunk_size_seconds": 0.25,

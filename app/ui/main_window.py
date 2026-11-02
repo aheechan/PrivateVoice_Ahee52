@@ -70,7 +70,6 @@ class MainWindow(QWidget):
     text_submitted = Signal(str)
     style_changed = Signal(str)
     request_clean = Signal()
-    request_toggle_models = Signal()
     talk_pressed = Signal()
     talk_released = Signal()
 
@@ -174,12 +173,14 @@ class MainWindow(QWidget):
         self.btn_warm.setToolTip("提前把 ASR / TTS 加载进显存，第一次说话就不用等加载")
         self.btn_warm.clicked.connect(self.request_warmup.emit)
         row.addWidget(self.btn_warm)
-        self.btn_models = QPushButton("释放模型")
-        self.btn_models.setToolTip(
-            "把 ASR / TTS（以及可选的本地 LLM）从显存里卸掉，给训练腾地方；\n"
-            "再次点击会重新加载。训练完成后建议重启软件。")
-        self.btn_models.clicked.connect(self.request_toggle_models.emit)
-        row.addWidget(self.btn_models)
+        self.btn_clean = QPushButton("清理缓存")
+        self.btn_clean.setToolTip(
+            "删除临时音频与日志：\n"
+            "results\\tts（每轮合成音频，默认保留 10 分钟）、results\\quality、"
+            "results\\compare、训练中间产物、日志\n"
+            "不会动角色、模型缓存和程序本体。")
+        self.btn_clean.clicked.connect(self.request_clean.emit)
+        row.addWidget(self.btn_clean)
         for text, sig in (("设置", self.request_settings),
                           ("大模型", self.request_llm),
                           ("诊断", self.request_diagnostics),
@@ -195,12 +196,6 @@ class MainWindow(QWidget):
 
     def set_warmup_status(self, text: str) -> None:
         self.warm_hint.setText(text)
-
-    def set_models_loaded(self, loaded: bool) -> None:
-        self.btn_models.setText("释放模型" if loaded else "加载模型")
-        tip = ("把 ASR / TTS 从显存里卸掉，给训练腾地方；再次点击会重新加载。"
-               if loaded else "重新把 ASR / TTS 加载回显存（约 20 秒）。")
-        self.btn_models.setToolTip(tip)
 
     def set_warm(self, warm: bool) -> None:
         """预热期间禁用输入，避免和预热抢 GPU（会让 v3 CUDA Graph 卡死）。"""

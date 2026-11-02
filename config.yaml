@@ -30,6 +30,8 @@ audio:
   level_yellow:
   - -12.0
   - -6.0
+  save_tts: true
+  tts_ttl_minutes: 10
 qc:
   min_duration_sec: 45.0
   pass_max_sec: 90.0
@@ -65,9 +67,9 @@ label:
   dup_similarity: 0.9
 tts:
   how_to_cut: 按标点符号切
-  top_k: 15
-  top_p: 0.95
-  temperature: 0.7
+  top_k: 5
+  top_p: 1.0
+  temperature: 0.6
   speed: 1.1
   sample_steps: 4
   chunk_size_seconds: 0.25
@@ -82,6 +84,8 @@ tts:
   - 你还记得我们上次说的那件事吗？
   - 别急着走，再陪我坐一会儿吧。
   max_sec_per_char: 0.55
+  retry_top_k: 15
+  retry_temperature: 0.7
 ui:
   hotkey: ctrl+alt+space
   language: zh

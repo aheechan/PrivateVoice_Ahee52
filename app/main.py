@@ -285,10 +285,8 @@ class MainController(QObject):
         if info.get("reload"):
             self._models_loaded = True
             if self._main is not None:
-                self._main.set_models_loaded(True)
                 self._main.set_warm(True)
                 self._main.set_warmup_status("模型已重新加载，可以说话了")
-            self.tray.notify("模型已加载", "可以继续说话了。", 3000)
             return
         ok = bool(info) and "tts_error" not in info and not info.get("error")
         if ok:
@@ -340,50 +338,60 @@ class MainController(QObject):
             return
         self._wizard = NewCharacterWizard(self.config, self.store, parent=None,
                                           character_id=character_id)
+        self._training_done = False
+        self._release_for_training()      # 打开训练向导就先卸模型，保证显存放得下
         self._wizard.training_state.connect(self.set_training)
         self._wizard.training_begin.connect(self._release_for_training)
-        self._wizard.training_end.connect(self._reload_after_training)
+        self._wizard.training_end.connect(self._restart_after_training)
         self._wizard.finished.connect(self._on_wizard_done)
         self._wizard.show()
 
     def _release_for_training(self) -> None:
-        """训练前自动释放模型（手动按钮之外的第二条保障）。"""
+        """训练开始时强制卸载所有模型，把显存全部让出来。"""
         pipe = self.pipeline
-        if pipe is None or not self._models_loaded:
+        if pipe is None:
             return
         try:
             info = pipe.release_models()
             self._models_loaded = False
-            if self._main is not None:
-                self._main.set_models_loaded(False)
+            self.log.info("训练前已释放模型：%s", info)
             self.tray.notify(
                 "已为训练释放显存",
-                f"当前可用显存 {info.get('vram_free_gb', '?')} GB；训练结束后会自动重新加载。",
-                5000)
+                f"当前可用显存 {info.get('vram_free_gb', '?')} GB；"
+                f"训练结束后会自动重启软件。", 5000)
         except Exception as exc:  # noqa: BLE001
             self.log.warning("训练前释放模型失败：%s", exc)
 
-    def _reload_after_training(self, ok: bool) -> None:
-        """训练结束后把模型加载回来（不阻塞 UI）。"""
-        import threading
+    def _restart_after_training(self, ok: bool) -> None:
+        """训练结束（成功或失败）后重启软件：保证显存干净、而且能加载新权重。"""
+        from PySide6.QtWidgets import QMessageBox
 
-        pipe = self.pipeline
-        if pipe is None or self._models_loaded:
-            return
-
-        def work() -> None:
-            try:
-                pipe.load_models()
-                self._models_loaded = True
-                self.bridge.warmupFinished.emit({"reload": True})
-                self.tray.notify("模型已重新加载", "可以继续说话了。", 3000)
-            except Exception as exc:  # noqa: BLE001
-                self.log.warning("训练后重新加载模型失败：%s", exc)
-                self.tray.notify("重新加载失败", f"{exc}；请重启软件。", 8000)
-
-        threading.Thread(target=work, daemon=True).start()
+        QMessageBox.information(
+            self, "训练结束",
+            "训练已结束。\n\n软件会重新启动一次：\n"
+            "· 释放训练占用的显存\n"
+            "· 重新加载语音模型（新角色会出现在角色库里）\n\n"
+            "点「确定」后稍等几秒，窗口会自己回来。")
+        self.log.info("训练结束，准备重启软件（ok=%s）", ok)
+        self._training_done = True
+        restart_app()
 
     def _on_wizard_done(self, result: int) -> None:
+        if not getattr(self, "_training_done", False) and not self._models_loaded:
+            # 只是打开看了一下、没真训练：把模型加载回来
+            pipe = self.pipeline
+            if pipe is not None:
+                import threading
+
+                def work() -> None:
+                    try:
+                        pipe.load_models()
+                        self._models_loaded = True
+                        self.bridge.warmupFinished.emit({"reload": True})
+                    except Exception as exc:  # noqa: BLE001
+                        self.log.warning("退出训练向导后重新加载失败：%s", exc)
+
+                threading.Thread(target=work, daemon=True).start()
         if self._wizard is not None:
             self._wizard.deleteLater()
             self._wizard = None
@@ -406,7 +414,6 @@ class MainController(QObject):
             self._main.text_submitted.connect(self.submit_text)
             self._main.style_changed.connect(self.set_style)
             self._main.request_clean.connect(self.clean_cache)
-            self._main.request_toggle_models.connect(self.toggle_models)
             self._main.talk_pressed.connect(self._on_press)
             self._main.talk_released.connect(self._on_release)
             self.bridge.stateChanged.connect(self._main.set_state)
@@ -445,57 +452,6 @@ class MainController(QObject):
         if self.pipeline is not None:
             self.pipeline.set_style(style_id)
         self.log.info("情绪档位切换：%s", style_id)
-
-    def toggle_models(self) -> None:
-        """在主界面一键释放 / 重新加载模型，给训练腾显存。"""
-        import threading
-
-        from PySide6.QtWidgets import QMessageBox
-
-        pipe = self._ensure_pipeline()
-        if pipe is None:
-            return
-        if self._models_loaded:
-            if QMessageBox.question(
-                    self, "释放模型",
-                    "将卸载 ASR 与 TTS，释放它们占用的显存（约 3GB）。\n"
-                    "本地 LLM 是独立进程，需要用它的启动脚本自行停止。\n\n"
-                    "释放后不能马上说话，需要再点一次「加载模型」。继续？"
-            ) != QMessageBox.Yes:
-                return
-            before = pipe.vram_free_gb()
-            info = pipe.release_models()
-            after = info.get("vram_free_gb", pipe.vram_free_gb())
-            self._models_loaded = False
-            if self._main is not None:
-                self._main.set_models_loaded(False)
-                self._main.set_warm(False)
-                self._main.set_warmup_status(
-                    f"模型已释放：可用显存 {before:.2f} → {after:.2f} GB")
-            QMessageBox.information(
-                self, "模型已释放",
-                f"可用显存：{before:.2f} GB → {after:.2f} GB\n"
-                f"（释放 {max(0.0, after - before):.2f} GB；"
-                f"torch 占用 {info.get('torch_allocated_gb', 0):.2f} GB）\n\n"
-                "本地 LLM 是独立进程，不在这部分里；要腾它的显存请停掉 llama-server。\n"
-                "训练结束后点「加载模型」即可恢复。")
-            return
-
-        self._models_loaded = True
-        if self._main is not None:
-            self._main.set_models_loaded(True)
-            self._main.set_warm(False)
-            self._main.set_warmup_status("正在重新加载模型（约 20 秒）…")
-
-        def work() -> None:
-            try:
-                pipe.load_models()
-                self.bridge.warmupFinished.emit({"reload": True})
-            except Exception as exc:  # noqa: BLE001
-                self.log.warning("重新加载模型失败：%s", exc)
-                self.bridge.error.emit(f"重新加载模型失败：{exc}")
-
-        threading.Thread(target=work, daemon=True).start()
 
     def clean_cache(self) -> None:
         """清理日志 / 训练中间产物 / 诊断音频（不动角色与模型）。"""
@@ -670,6 +626,24 @@ def _raise_windows(holder: list) -> None:
         ctrl._manager.raise_()
     else:
         ctrl.open_main()
+
+
+def restart_app(delay_s: int = 2) -> None:
+    """重启自己：先让本进程退出（释放单实例锁与显存），再拉起新进程。"""
+    import subprocess
+
+    exe = sys.executable
+    script = str(Path(__file__).resolve())
+    args = " ".join(f'"{a}"' for a in sys.argv[1:])
+    cmd = (f'timeout /t {delay_s} >nul & start "" "{exe}" "{script}" {args}').strip()
+    creation = getattr(subprocess, "DETACHED_PROCESS", 0) | \
+        getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+    try:
+        subprocess.Popen(["cmd", "/c", cmd], cwd=str(ROOT), creationflags=creation,
+                         close_fds=True)
+    except Exception:  # noqa: BLE001
+        log.exception("重启失败，请手动启动")
+    QApplication.instance().quit()
 
 
 def install_autostart(enabled: bool) -> None:

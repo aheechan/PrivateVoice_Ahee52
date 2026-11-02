@@ -648,6 +648,36 @@ class Pipeline:
                 continue
         return False
 
+    def _synth_once(self, text: str, ref: str, ref_text: str,
+                    params: dict[str, Any] | None = None,
+                    cancel: threading.Event | None = None
+                    ) -> tuple[np.ndarray, int] | None:
+        """合成一句，返回 (音频, 采样率)；用于异常时长时的重试。"""
+        buf: list[np.ndarray] = []
+        sr = 24000
+        gen = None
+        try:
+            with self._tts_lock:
+                engine = self._ensure_tts()
+                gen = engine.synthesize_stream(text, ref, ref_text, **(params or {}))
+                for chunk in gen:
+                    if cancel is not None and cancel.is_set():
+                        return None
+                    buf.append(np.asarray(chunk.samples, np.float32))
+                    sr = int(chunk.samplerate or 24000)
+        except Exception as exc:  # noqa: BLE001
+            self._emit("error", text=f"TTS 重试失败：{exc}")
+            return None
+        finally:
+            if gen is not None:
+                try:
+                    gen.close()
+                except Exception:
+                    pass
+        if not buf:
+            return None
+        return np.concatenate(buf), sr
+
     def _tts_loop(self) -> None:
         ch = self.character
         ref = str(self.store.dir_of(ch.id) / (ch.voice.get("reference") or "reference.wav"))
@@ -735,8 +765,20 @@ class Pipeline:
                     per_char = float(self.config.get("tts.max_sec_per_char", 0.55))
                     cap = per_char * max(4, len(text)) + 1.0
                     if data.size / sr_out > cap:
+                        # 先用更"放开"的采样重试一次，实在不行才截断
                         self._emit("info",
-                                   text=f"TTS 输出异常偏长（{data.size/sr_out:.1f}s > {cap:.1f}s），已截断")
+                                   text=f"TTS 输出偏长（{data.size/sr_out:.1f}s），用宽松采样重试")
+                        alt = self._synth_once(
+                            text, ref, ref_text,
+                            {"top_k": int(self.config.get("tts.retry_top_k", 15)),
+                             "temperature": float(self.config.get("tts.retry_temperature", 0.7))},
+                            cancel)
+                        if alt is not None and 0 < alt[0].size < buf and \
+                                alt[0].size / alt[1] < data.size / sr_out:
+                            data, sr_out = alt
+                    if data.size / sr_out > cap * 1.3:
+                        self._emit("info",
+                                   text=f"TTS 仍偏长（{data.size/sr_out:.1f}s），截断到 {cap:.1f}s")
                         data = data[: int(cap * sr_out)]
                     # 句首句尾各 8ms 淡入淡出：避免直接硬切造成的"咔"声
                     data = audio_qc.fade(data, sr_out, 8.0)
@@ -793,6 +835,15 @@ class Pipeline:
             logger.warning("保存本轮音频失败：%s", exc)
 
     def _rotate_tts(self, out_dir: Path) -> None:
+        ttl_min = float(self.config.get("audio.tts_ttl_minutes", 10))
+        if ttl_min > 0:
+            cutoff = time.time() - ttl_min * 60
+            for old in out_dir.glob("*"):
+                try:
+                    if old.stat().st_mtime < cutoff:
+                        old.unlink(missing_ok=True)
+                except OSError:
+                    pass
         keep = int(self.config.get("audio.keep_tts", 200))
         if keep <= 0:
             return

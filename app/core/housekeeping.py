@@ -3,6 +3,7 @@
 分发包里哪些东西可以删、哪些绝对不能删：
 
 可删（清理按钮只动这些）：
+  results\\tts\\           每轮合成音频（临时，默认 10 分钟自动过期）
   logs\\*.log            运行日志（含 app.log 轮转）
   logs\\turns.jsonl      每轮延迟埋点
   datasets\\*\\work\\      训练中间产物（wav24k、train.list、s2/s1 配置）
@@ -71,6 +72,8 @@ def cache_report(config: Any) -> list[tuple[str, str, float]]:
         (str(root / "logs"), "日志：app.log / turns.jsonl", _size(root / "logs") / 1e6),
         (str(root / "datasets"), "训练中间产物（wav24k、配置）",
          _size(root / "datasets") / 1e6),
+        (str(root / "results" / "tts"), "每轮合成音频（临时，10 分钟）",
+         _size(root / "results" / "tts") / 1e6),
         (str(root / "results" / "quality"), "音质诊断音频",
          _size(root / "results" / "quality") / 1e6),
         (str(root / "results" / "compare"), "A/B 对比音频",
@@ -116,6 +119,7 @@ def clean(config: Any, keep_logs: bool = False) -> CleanResult:
             drop(f, f"logs/{f.name}")
         for f in (root / "logs").glob("turns.jsonl*"):
             drop(f, f"logs/{f.name}")
+    drop(root / "results" / "tts", "results/tts")
     drop(root / "results" / "quality", "results/quality")
     drop(root / "results" / "compare", "results/compare")
     # datasets：只删各角色下的 work 与临时探针目录，保留结构
