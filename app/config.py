@@ -248,7 +248,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         ],
     },
     "player": {
-        "blocksize_ms": 30,
+        "blocksize_ms": 50,
         "sentence_gap_ms": 80,
         "limiter_dbtp": -1.0,
         "buffer_chunks": 64,
