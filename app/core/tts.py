@@ -87,12 +87,32 @@ class AquaTTSEngine(TTSEngine):
             os.environ["BIGVGAN_USE_CUDA_KERNEL"] = "0"
         os.environ.setdefault("PYTHONUTF8", "1")
 
+    def _detect_version(self, sovits_ckpt: str) -> str:
+        """先看 checkpoint 头，判断是 v3 还是 v4；失败再退回路径启发。"""
+        repo = Path(self.home)
+        for p in (str(repo), str(repo / "GPT_SoVITS")):
+            if p not in sys.path:
+                sys.path.insert(0, p)
+        try:
+            from GPT_SoVITS.process_ckpt import get_sovits_version_from_path_fast
+
+            _sym, model, _lora = get_sovits_version_from_path_fast(str(sovits_ckpt))
+            return str(model)
+        except Exception:
+            name = str(sovits_ckpt).lower()
+            return "v4" if ("_v4" in name or "v4" in Path(name).name) else ""
+
     def load(self, gpt_ckpt: str, sovits_ckpt: str, force: bool = False) -> None:
         if self._loaded and not force and self._ckpt == (str(gpt_ckpt), str(sovits_ckpt)):
             return
         self._prepare_env()
         # 上游 G2PW 按进程 CWD 解析 GPT_SoVITS/text/G2PWModel
         os.chdir(self.home)
+        version = self._detect_version(str(sovits_ckpt))
+        if version == "v4":
+            # Aqua 0.3.0 只支持到 v3；v4 直接走上游自带推理栈
+            self._load_upstream_v4(gpt_ckpt, sovits_ckpt)
+            return
         try:
             from aquatts import TTSInferencer
 
@@ -110,7 +130,6 @@ class AquaTTSEngine(TTSEngine):
         except Exception as exc:  # noqa: BLE001
             if "v4" not in str(exc):
                 raise
-            # Aqua 0.3.0 只支持到 v3；v4 走上游自带推理栈
             self._load_upstream_v4(gpt_ckpt, sovits_ckpt)
 
     def _load_upstream_v4(self, gpt_ckpt: str, sovits_ckpt: str) -> None:
