@@ -216,7 +216,8 @@ class LLMClient:
         return connect, first, total
 
     def _payload(self, provider: Provider, messages: list[dict[str, str]],
-                 temperature: float, max_tokens: int) -> dict[str, Any]:
+                 temperature: float, max_tokens: int,
+                 sampling: dict[str, Any] | None = None) -> dict[str, Any]:
         body: dict[str, Any] = {
             "model": provider.model,
             "messages": messages,
@@ -224,8 +225,17 @@ class LLMClient:
             "temperature": temperature,
             "max_tokens": max_tokens,
         }
+        # 情绪档位带来的采样参数（top_p / repeat_penalty 等）
+        for k in ("top_p", "top_k", "min_p", "repeat_penalty",
+                  "presence_penalty", "frequency_penalty"):
+            if sampling and sampling.get(k) is not None:
+                body[k] = sampling[k]
         extra: dict[str, Any] = {}
-        if self.config.get("llm.disable_thinking", True):
+        thinking = bool(self.config.get("llm.enable_thinking", False)) or \
+            bool(sampling and sampling.get("enable_thinking"))
+        if thinking:
+            extra["chat_template_kwargs"] = {"enable_thinking": True}
+        elif self.config.get("llm.disable_thinking", True):
             extra.update(self.config.get("llm.thinking_extra_body",
                                          DEFAULT_THINKING_BODY))
         extra.update(provider.extra_body or {})
@@ -243,9 +253,11 @@ class LLMClient:
     # -- 单 provider 流式 ----------------------------------------------
     def stream_once(self, provider: Provider, messages: list[dict[str, str]],
                     temperature: float = 0.8, max_tokens: int = 160,
-                    cancel: threading.Event | None = None) -> Iterator[LLMDelta]:
+                    cancel: threading.Event | None = None,
+                    sampling: dict[str, Any] | None = None) -> Iterator[LLMDelta]:
         connect_t, first_t, total_t = self._timeouts(provider)
-        payload = self._payload(provider, messages, temperature, max_tokens)
+        payload = self._payload(provider, messages, temperature, max_tokens,
+                                sampling)
         t0 = time.perf_counter()
         first_ms: float | None = None
         try:
@@ -294,6 +306,7 @@ class LLMClient:
                     temperature: float = 0.8, max_tokens: int = 160,
                     cancel: threading.Event | None = None,
                     on_attempt: Callable[[dict[str, Any]], None] | None = None,
+                    sampling: dict[str, Any] | None = None,
                     ) -> Iterator[LLMDelta]:
         """按 priority 逐个尝试；第一个能吐出 token 的 provider 就锁定。"""
         providers = self.store.active()
@@ -307,7 +320,7 @@ class LLMClient:
             started = False
             try:
                 for delta in self.stream_once(p, messages, temperature, max_tokens,
-                                              cancel):
+                                              cancel, sampling):
                     if not started:
                         started = True
                         if on_attempt:

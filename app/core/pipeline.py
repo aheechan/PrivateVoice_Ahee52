@@ -140,6 +140,7 @@ class Pipeline:
         self.recorder = audio_io.Recorder(
             samplerate=48000, device=config.audio.get("input_device"))
         self._tts: TTSEngine | None = None
+        self.style_id = str(config.get("llm.default_style", "gentle"))
         self._tts_key: tuple[str, str] = ("", "")
 
         self.metrics = MetricsStore(Path(config.path_of("logs")) / "turns.jsonl")
@@ -376,6 +377,18 @@ class Pipeline:
                 pass
 
     # -- 主流程 --------------------------------------------------------
+    def set_style(self, style_id: str) -> None:
+        """切换情绪档位（温柔/活泼/冷静/毒舌/低落），下一轮生效。"""
+        self.style_id = style_id
+        self._emit("info", text=f"情绪档位：{self._style().get('name', style_id)}")
+
+    def _style(self) -> dict[str, Any]:
+        styles = self.config.get("llm.styles", []) or []
+        for s in styles:
+            if s.get("id") == self.style_id:
+                return s
+        return styles[0] if styles else {}
+
     def _messages(self, user_text: str) -> list[dict[str, str]]:
         ch = self.character
         template = ""
@@ -395,6 +408,9 @@ class Pipeline:
         greeting = (getattr(ch, "greeting", "") or "").strip()
         if greeting:
             sys_text += f"\n你的开场白是：「{greeting}」（只在第一次见面时用，不要每轮重复）。"
+        style = self._style()
+        if style.get("hint"):
+            sys_text += f"\n\n【本轮情绪】{style['name']}：{style['hint']}"
         msgs = [{"role": "system", "content": sys_text.strip()}]
         budget = int(self.config.get("llm.token_budget", 1500))
         msgs += self.history.context(budget_chars=budget)
@@ -454,6 +470,7 @@ class Pipeline:
                         self._messages(user_text),
                         temperature=float((ch.llm or {}).get("temperature", 0.8)),
                         max_tokens=int((ch.llm or {}).get("max_tokens", 160)),
+                        sampling=self._style(),
                         cancel=cancel):
                     if cancel.is_set():
                         return

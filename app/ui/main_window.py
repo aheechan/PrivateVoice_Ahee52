@@ -10,7 +10,7 @@ from pathlib import Path
 from PySide6.QtCore import QRectF, QSize, Qt, Signal
 from PySide6.QtGui import QColor, QFont, QPainter, QPixmap
 from PySide6.QtWidgets import (
-    QHBoxLayout, QLabel, QLineEdit, QPushButton, QSizePolicy, QTextEdit,
+    QComboBox, QHBoxLayout, QLabel, QLineEdit, QPushButton, QSizePolicy, QTextEdit,
     QVBoxLayout, QWidget,
 )
 
@@ -68,6 +68,8 @@ class MainWindow(QWidget):
     request_new_character = Signal()
     request_warmup = Signal()
     text_submitted = Signal(str)
+    style_changed = Signal(str)
+    request_clean = Signal()
     talk_pressed = Signal()
     talk_released = Signal()
 
@@ -76,7 +78,8 @@ class MainWindow(QWidget):
         self.config = config
         self.store = store
         self.setWindowTitle("情感陪伴器_v1")
-        self.resize(460, 580)
+        self.setObjectName("Root")
+        self.resize(460, 620)
         self._character = None
         self._last_state = "idle"
         self._build()
@@ -105,8 +108,23 @@ class MainWindow(QWidget):
         root.addLayout(head)
 
         self.status = QLabel("● 待机")
-        self.status.setStyleSheet("color:#4A90D9;font-size:13px;")
+        self.status.setObjectName("Status")
         root.addWidget(self.status)
+
+        row_style = QHBoxLayout()
+        lab = QLabel("情绪")
+        lab.setObjectName("Muted")
+        row_style.addWidget(lab)
+        self.style_box = QComboBox()
+        for s in self.config.get("llm.styles", []) or []:
+            self.style_box.addItem(s.get("name", s.get("id")), s.get("id"))
+        idx = self.style_box.findData(self.config.get("llm.default_style", "gentle"))
+        self.style_box.setCurrentIndex(max(0, idx))
+        self.style_box.currentIndexChanged.connect(
+            lambda _i: self.style_changed.emit(self.style_box.currentData()))
+        row_style.addWidget(self.style_box)
+        row_style.addStretch(1)
+        root.addLayout(row_style)
 
         self.warm_hint = QLabel("")
         self.warm_hint.setStyleSheet("color:#888;font-size:12px;")
@@ -130,14 +148,9 @@ class MainWindow(QWidget):
         root.addLayout(row_in)
 
         self.talk = QPushButton("按住说话")
+        self.talk.setObjectName("Primary")
         self.talk.setMinimumHeight(96)
         self.talk.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        self.talk.setStyleSheet(
-            "QPushButton{font-size:22px;font-weight:600;border-radius:16px;"
-            "background:#2b6cb0;color:#fff;}"
-            "QPushButton:hover{background:#2f7ac4;}"
-            "QPushButton:pressed{background:#E5534B;}"
-            "QPushButton:disabled{background:#3a4250;color:#8b93a3;}")
         self.talk.pressed.connect(self._on_press)
         self.talk.released.connect(self._on_release)
         root.addWidget(self.talk)
@@ -160,6 +173,10 @@ class MainWindow(QWidget):
         self.btn_warm.setToolTip("提前把 ASR / TTS 加载进显存，第一次说话就不用等加载")
         self.btn_warm.clicked.connect(self.request_warmup.emit)
         row.addWidget(self.btn_warm)
+        self.btn_clean = QPushButton("清理缓存")
+        self.btn_clean.setToolTip("清理日志、训练中间产物、诊断音频（不会动角色和模型）")
+        self.btn_clean.clicked.connect(self.request_clean.emit)
+        row.addWidget(self.btn_clean)
         for text, sig in (("设置", self.request_settings),
                           ("大模型", self.request_llm),
                           ("诊断", self.request_diagnostics),

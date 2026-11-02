@@ -294,14 +294,15 @@ class MainController(QObject):
             self.tray.set_state("idle")
 
     # -- 窗口 ----------------------------------------------------------
-    def open_wizard(self) -> None:
+    def open_wizard(self, character_id: str | None = None) -> None:
         from app.ui.wizard import NewCharacterWizard
 
         if self._wizard is not None:
             self._wizard.raise_()
             self._wizard.activateWindow()
             return
-        self._wizard = NewCharacterWizard(self.config, self.store, parent=None)
+        self._wizard = NewCharacterWizard(self.config, self.store, parent=None,
+                                          character_id=character_id)
         self._wizard.training_state.connect(self.set_training)
         self._wizard.finished.connect(self._on_wizard_done)
         self._wizard.show()
@@ -327,6 +328,8 @@ class MainController(QObject):
             self._main.request_new_character.connect(self.open_wizard)
             self._main.request_warmup.connect(self.start_warmup)
             self._main.text_submitted.connect(self.submit_text)
+            self._main.style_changed.connect(self.set_style)
+            self._main.request_clean.connect(self.clean_cache)
             self._main.talk_pressed.connect(self._on_press)
             self._main.talk_released.connect(self._on_release)
             self.bridge.stateChanged.connect(self._main.set_state)
@@ -356,6 +359,36 @@ class MainController(QObject):
         if self._main is not None:
             self._main.set_state("thinking", "文字输入")
         pipe.submit_text(text)
+
+    def set_style(self, style_id: str) -> None:
+        if not style_id:
+            return
+        self.config.set("llm.default_style", style_id)
+        self.config.save()
+        if self.pipeline is not None:
+            self.pipeline.set_style(style_id)
+        self.log.info("情绪档位切换：%s", style_id)
+
+    def clean_cache(self) -> None:
+        """清理日志 / 训练中间产物 / 诊断音频（不动角色与模型）。"""
+        from PySide6.QtWidgets import QMessageBox
+
+        from app.core import housekeeping
+
+        rows = housekeeping.cache_report(self.config)
+        detail = "\n".join(f"  {p}  {mb:.0f} MB  （{desc}）" for p, desc, mb in rows)
+        if QMessageBox.question(
+                self, "清理缓存",
+                "将清理：日志、训练中间产物、诊断/对比音频、临时文件。\n"
+                "不会动角色、模型缓存和程序本体。\n\n当前占用：\n" + detail +
+                "\n\n继续？") != QMessageBox.Yes:
+            return
+        res = housekeeping.clean(self.config)
+        msg = f"已清理 {len(res.removed)} 项，释放 {res.freed_mb:.0f} MB。"
+        if res.errors:
+            msg += "\n\n部分失败：\n" + "\n".join(res.errors[:5])
+        QMessageBox.information(self, "清理完成", msg)
+        self.log.info("清理缓存：%s", msg)
 
     def start_warmup(self) -> None:
         """手动预热：把 ASR / TTS 提前加载进显存。"""
@@ -393,6 +426,7 @@ class MainController(QObject):
             self._manager = CharacterManager(self.config, self.store)
             self._manager.changed.connect(self._on_characters_changed)
             self._manager.new_requested.connect(self.open_wizard)
+            self._manager.train_requested.connect(self.open_wizard)
             self._manager.closed.connect(self._on_manager_closed)
         self._manager.refresh()
         self._manager.show()
@@ -564,6 +598,11 @@ def main() -> int:
         log.warning("安装路径包含非 ASCII 字符：%s", ROOT)
 
     app.setWindowIcon(make_icon("idle"))
+    try:
+        from app.ui import theme
+        theme.apply(app)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("主题加载失败：%s", exc)
 
     holder: list = []
     server = _start_server(holder)

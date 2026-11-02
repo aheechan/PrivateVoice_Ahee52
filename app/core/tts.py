@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import os
+import sys
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -92,17 +93,67 @@ class AquaTTSEngine(TTSEngine):
         self._prepare_env()
         # 上游 G2PW 按进程 CWD 解析 GPT_SoVITS/text/G2PWModel
         os.chdir(self.home)
-        from aquatts import TTSInferencer
+        try:
+            from aquatts import TTSInferencer
 
+            t0 = time.perf_counter()
+            self._infer = TTSInferencer(
+                device=self.cfg.get("device", "cuda"),
+                gpt_path=str(gpt_ckpt),
+                sovits_path=str(sovits_ckpt),
+            )
+            self.load_seconds = time.perf_counter() - t0
+            self._ckpt = (str(gpt_ckpt), str(sovits_ckpt))
+            self._loaded = True
+            self._backend = "aqua"
+            return
+        except Exception as exc:  # noqa: BLE001
+            if "v4" not in str(exc):
+                raise
+            # Aqua 0.3.0 只支持到 v3；v4 走上游自带推理栈
+            self._load_upstream_v4(gpt_ckpt, sovits_ckpt)
+
+    def _load_upstream_v4(self, gpt_ckpt: str, sovits_ckpt: str) -> None:
+        import soundfile as sf
+        import torch
+        import torchaudio
+
+        # torchaudio 2.11 的 load 依赖 torchcodec（未安装），进程内用 soundfile 顶上
+        if getattr(torchaudio, "_voicelab_patched", False) is False:
+            def _load(path, **kw):  # noqa: ANN001
+                data, sr = sf.read(str(path), dtype="float32", always_2d=True)
+                return torch.from_numpy(data.T.copy()), int(sr)
+
+            torchaudio.load = _load  # type: ignore[assignment]
+            torchaudio._voicelab_patched = True  # type: ignore[attr-defined]
+
+        repo = Path(self.home)
+        for p in (str(repo), str(repo / "GPT_SoVITS")):
+            if p not in sys.path:
+                sys.path.insert(0, p)
+        pm = repo / "GPT_SoVITS" / "pretrained_models"
+        # fast_langdetect 的模型目录必须存在，否则上游语言分段会报错
+        (pm / "fast_langdetect").mkdir(parents=True, exist_ok=True)
+
+        from GPT_SoVITS.TTS_infer_pack.TTS import TTS, TTS_Config
+
+        config = {"custom": {
+            "device": self.cfg.get("device", "cuda"),
+            "is_half": True,
+            "version": "v4",
+            "t2s_weights_path": str(gpt_ckpt),
+            "vits_weights_path": str(pm / "gsv-v4-pretrained" / "s2Gv4.pth"),
+            "bert_base_path": str(pm / "chinese-roberta-wwm-ext-large"),
+            "cnhuhbert_base_path": str(pm / "chinese-hubert-base"),
+        }}
         t0 = time.perf_counter()
-        self._infer = TTSInferencer(
-            device=self.cfg.get("device", "cuda"),
-            gpt_path=str(gpt_ckpt),
-            sovits_path=str(sovits_ckpt),
-        )
+        self._infer = TTS(TTS_Config(config))
+        self._infer.init_t2s_weights(str(gpt_ckpt))
+        self._infer.init_vits_weights(str(sovits_ckpt))
         self.load_seconds = time.perf_counter() - t0
         self._ckpt = (str(gpt_ckpt), str(sovits_ckpt))
         self._loaded = True
+        self._backend = "upstream-v4"
 
     def unload(self) -> None:
         self._infer = None
@@ -135,6 +186,9 @@ class AquaTTSEngine(TTSEngine):
             "chunk_size_seconds": self.cfg.get("chunk_size_seconds", 0.25),
         }
         params.update(kwargs)
+        if getattr(self, "_backend", "aqua") == "upstream-v4":
+            yield from self._stream_upstream(text, reference, reference_text, **kwargs)
+            return
         t0 = time.perf_counter()
         first = True
         for item in self._infer.infer_stream(**params):
@@ -154,6 +208,48 @@ class AquaTTSEngine(TTSEngine):
                 self.last_ttfp_ms = (time.perf_counter() - t0) * 1000.0
                 first = False
             yield AudioChunk(samples=arr, samplerate=int(sr or 24000))
+
+    def _stream_upstream(self, text: str, reference: str, reference_text: str,
+                         **kwargs: Any) -> Iterator[AudioChunk]:
+        """v4：走上游 TTS.run()，cut5 切分下首包约 1.1s、RTF≈0.6。"""
+        inputs = {
+            "text": text,
+            "text_lang": "zh",
+            "ref_audio_path": str(reference),
+            "prompt_text": reference_text,
+            "prompt_lang": "zh",
+            "top_k": self.cfg.get("top_k", 5),
+            "top_p": self.cfg.get("top_p", 1.0),
+            "temperature": self.cfg.get("temperature", 0.6),
+            "text_split_method": self.cfg.get("v4_split_method", "cut5"),
+            "batch_size": 1,
+            "speed_factor": self.cfg.get("speed", 1.1),
+            "streaming_mode": True,
+            "return_fragment": True,
+            "fragment_interval": self.cfg.get("fragment_interval", 0.3),
+            "seed": 42,
+            "parallel_infer": True,
+            "repetition_penalty": 1.35,
+            "sample_steps": self.cfg.get("sample_steps", 4),
+            "super_sampling": False,
+        }
+        inputs.update({k: v for k, v in kwargs.items() if k in inputs})
+        t0 = time.perf_counter()
+        first = True
+        for chunk in self._infer.run(inputs):
+            if isinstance(chunk, tuple) and len(chunk) == 2:
+                sr, audio = chunk
+            else:
+                sr, audio = 48000, chunk
+            if audio is None:
+                continue
+            arr = np.asarray(audio, dtype=np.float32).reshape(-1)
+            if arr.size == 0:
+                continue
+            if first:
+                self.last_ttfp_ms = (time.perf_counter() - t0) * 1000.0
+                first = False
+            yield AudioChunk(samples=arr, samplerate=int(sr or 48000))
 
     # -- 诊断 ----------------------------------------------------------
     def backend_info(self) -> dict[str, Any]:

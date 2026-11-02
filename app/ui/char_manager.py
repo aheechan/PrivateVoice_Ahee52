@@ -22,6 +22,7 @@ class CharacterManager(QDialog):
     changed = Signal()
     closed = Signal()
     new_requested = Signal()
+    train_requested = Signal(str)
 
     def __init__(self, config: Config, store: CharacterStore, parent=None):
         super().__init__(parent)
@@ -56,12 +57,14 @@ class CharacterManager(QDialog):
 
         row = QHBoxLayout()
         self.btn_new = QPushButton("新建角色…")
+        self.btn_train = QPushButton("上传素材/训练…")
+        self.btn_train.setToolTip("给选中的角色重新上传录音并训练（v3/v4 由设置决定）")
         self.btn_active = QPushButton("设为当前")
         self.btn_export = QPushButton("导出 .vcp…")
         self.btn_import = QPushButton("导入 .vcp…")
         self.btn_delete = QPushButton("删除")
-        for b in (self.btn_new, self.btn_active, self.btn_export, self.btn_import,
-                  self.btn_delete):
+        for b in (self.btn_new, self.btn_train, self.btn_active, self.btn_export,
+                  self.btn_import, self.btn_delete):
             row.addWidget(b)
         lv.addLayout(row)
         split.addWidget(left)
@@ -79,6 +82,7 @@ class CharacterManager(QDialog):
         root.addLayout(bottom)
 
         self.btn_new.clicked.connect(self.new_requested.emit)
+        self.btn_train.clicked.connect(self._train)
         self.btn_active.clicked.connect(self._set_active)
         self.btn_export.clicked.connect(self._export)
         self.btn_import.clicked.connect(self._import)
@@ -248,6 +252,11 @@ class CharacterManager(QDialog):
         self._load_into_editor()
         self.refresh()
         self.changed.emit()
+
+    def _train(self) -> None:
+        if not self._current_id:
+            return
+        self.train_requested.emit(self._current_id)
 
     def _set_active(self) -> None:
         if not self._current_id:

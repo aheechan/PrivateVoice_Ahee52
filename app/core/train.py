@@ -185,7 +185,8 @@ def _write_yaml(path: Path, data: dict[str, Any]) -> Path:
 
 
 def make_s2_config(work: Path, exp: str, plan: Any, project_root: Path,
-                   lora_rank: int = 32, grad_ckpt: bool = False) -> Path:
+                   lora_rank: int = 32, grad_ckpt: bool = False,
+                   version: str = "v3") -> Path:
     import copy
     cfg = copy.deepcopy(S2_TEMPLATE)
     tr = cfg["train"]
@@ -194,12 +195,20 @@ def make_s2_config(work: Path, exp: str, plan: Any, project_root: Path,
     tr["grad_ckpt"] = bool(grad_ckpt)
     tr["lora_rank"] = int(lora_rank)
     tr["learning_rate"] = round(0.0001 * float(plan.lr_scale), 8)
+    pretrained = "s2Gv4.pth" if version == "v4" else "s2Gv3.pth"
     tr["pretrained_s2G"] = str(
-        project_root / REPO_DIRNAME / "GPT_SoVITS" / "pretrained_models" / "s2Gv3.pth")
+        project_root / REPO_DIRNAME / "GPT_SoVITS" / "pretrained_models" / pretrained)
+    if not Path(tr["pretrained_s2G"]).exists():
+        raise TrainingError(
+            f"缺少 {pretrained}，请先下载到 GPT_SoVITS/pretrained_models/"
+            f"（v4 还需要同目录的 vocoder.pth）")
     cfg["data"]["exp_dir"] = f"logs/{exp}"
     cfg["s2_ckpt_dir"] = f"logs/{exp}"
+    cfg["model"]["version"] = version
+    cfg["version"] = version
+    cfg["save_weight_dir"] = f"SoVITS_weights_{version}"
     cfg["name"] = exp
-    return _write_json(work / "s2_v3.json", cfg)
+    return _write_json(work / f"s2_{version}.json", cfg)
 
 
 def make_s1_config(work: Path, exp: str, plan: Any, project_root: Path,
@@ -285,6 +294,7 @@ class TrainingRunner:
         self.exp = f"vlab_{character_id.split('-')[0]}"
         self.work = Path(config.path_of("datasets")) / character_id / "work"
         self.log_path = Path(config.path_of("logs")) / f"train_{character_id}.log"
+        self.s2_version = str(config.get("training.s2_version", "v3"))
         self.result: dict[str, Any] = {}
 
     # -- 事件 ----------------------------------------------------------
@@ -474,7 +484,8 @@ class TrainingRunner:
                 wav = (self.dataset_dir / rel).resolve()
                 lines.append(f"{wav}|{spk}|{lang}|{text}")
         (self.work / "train.list").write_text("\n".join(lines) + "\n", encoding="utf-8")
-        for d in (self.repo / "logs" / self.exp, self.repo / "SoVITS_weights_v3",
+        for d in (self.repo / "logs" / self.exp,
+                  self.repo / f"SoVITS_weights_{self.s2_version}",
                   self.repo / "GPT_weights_v3"):
             d.mkdir(parents=True, exist_ok=True)
         self.emit(TrainEvent(stage="prepare",
@@ -534,7 +545,8 @@ class TrainingRunner:
         while True:
             attempt += 1
             s2_cfg = make_s2_config(self.work, self.exp, self.plan, self.project_root,
-                                    grad_ckpt=(self.plan.vram_bucket <= 16))
+                                    grad_ckpt=(self.plan.vram_bucket <= 16),
+                                    version=self.s2_version)
             # 覆盖 batch（config 里已写，这里保持一致）
             data = json.loads(s2_cfg.read_text(encoding="utf-8"))
             data["train"]["batch_size"] = batch
@@ -553,7 +565,8 @@ class TrainingRunner:
                 self._cleanup_temp(keep_data=True)
                 continue
             raise TrainingError(f"SoVITS 训练失败（exit={code}），日志见 {self.log_path}")
-        weight = self._latest(self.repo / "SoVITS_weights_v3", f"{self.exp}_*.pth")
+        weight = self._latest(self.repo / f"SoVITS_weights_{self.s2_version}",
+                              f"{self.exp}_*.pth")
         if not weight:
             raise TrainingError("SoVITS 训练结束但没有产出权重文件（请检查 "
                                 "SoVITS_weights_v3 目录是否存在）")

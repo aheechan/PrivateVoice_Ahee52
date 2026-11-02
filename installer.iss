@@ -1,22 +1,22 @@
-; 情感陪伴器_v1 安装脚本（Inno Setup 6）
+; 情感陪伴器_v2 安装脚本（Inno Setup 6）——内置 GPT-SoVITS v4
 ; 编译：ISCC.exe /Qp installer.iss
-; 说明：包体约 9.5GB，为了构建速度这里不压缩；安装时直接复制。
+; 说明：包体约 12.6GB，为了构建速度这里不压缩；安装时直接复制。
 
-#define MyAppName "情感陪伴器_v1"
-#define MyAppVersion "1.0.0"
+#define MyAppName "情感陪伴器_v2"
+#define MyAppVersion "2.0.0"
 #define MyAppPublisher "VoiceLab"
-#define MyAppExeName "情感陪伴器_v1.exe"
+#define MyAppExeName "情感陪伴器_v2.exe"
 
 [Setup]
 AppId={{9F1C2B44-7C3A-4E7B-9C1D-2A6F5E8B0C31}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
-DefaultDirName={autopf}\VoiceCompanion_v1
+DefaultDirName={autopf}\VoiceCompanion_v2
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 OutputDir=C:\VoiceLab\dist\installer
-OutputBaseFilename=VoiceCompanion_v1_Setup
+OutputBaseFilename=VoiceCompanion_v2_Setup
 SetupIconFile=C:\VoiceLab\dist\app.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 Compression=none
@@ -38,7 +38,7 @@ Name: "chinese"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "创建桌面快捷方式"; GroupDescription: "快捷方式："
 
 [Files]
-Source: "C:\VoiceLab\dist\VoiceCompanion_v1\*"; DestDir: "{app}"; \
+Source: "C:\VoiceLab\dist\VoiceCompanion_v2\*"; DestDir: "{app}"; \
   Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]

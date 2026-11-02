@@ -103,6 +103,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "save_recent": 3,          # 每 epoch 保存，只留最近 N 个
         "oom_retries": 3,          # CUDA OOM 时 batch 减半重跑次数上限
         "fp16": True,
+        "s2_version": "v3",        # v3 | v4（v4 需要 s2Gv4.pth + vocoder.pth）
         "cuda_alloc_conf": "expandable_segments:True",
         "pretrained_s1": "s1v3.ckpt",
         "pretrained_s2": "s2Gv3.pth",
@@ -202,6 +203,20 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "first_token_timeout_ms": 5000,
         "total_timeout_ms": 30000,
         "disable_thinking": True,
+        # 想让它"想久一点"就把 disable_thinking 设 false；思考文本不会念出来
+        "default_style": "gentle",
+        "styles": [
+            {"id": "gentle", "name": "温柔", "temperature": 0.85, "top_p": 0.95,
+             "repeat_penalty": 1.06, "hint": "语气放软，像哄人，句子可以更短。"},
+            {"id": "lively", "name": "活泼", "temperature": 1.0, "top_p": 0.98,
+             "repeat_penalty": 1.08, "hint": "语气轻快一点，可以带一点玩笑，但别吵。"},
+            {"id": "calm", "name": "冷静", "temperature": 0.6, "top_p": 0.9,
+             "repeat_penalty": 1.05, "hint": "语速和情绪都平一点，少用感叹。"},
+            {"id": "sharp", "name": "毒舌", "temperature": 1.05, "top_p": 0.98,
+             "repeat_penalty": 1.12, "hint": "可以嘴硬、可以吐槽，但不人身攻击，最后一句要留温度。"},
+            {"id": "sad", "name": "低落", "temperature": 0.8, "top_p": 0.95,
+             "repeat_penalty": 1.06, "hint": "情绪低一点，句子更短，不说教。"},
+        ],
         # 关闭思考模式：默认注入这段到 extra_body，每个 provider 可覆盖
         "thinking_extra_body": {"chat_template_kwargs": {"enable_thinking": False}},
         "fallback_text": "我这会儿有点接不上话。",

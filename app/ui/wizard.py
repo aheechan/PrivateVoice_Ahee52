@@ -91,12 +91,16 @@ class WaveformWidget(QWidget):
 class NewCharacterWizard(QWizard):
     training_state = Signal(bool, str)
 
-    def __init__(self, config: Config, store: CharacterStore, parent=None):
+    def __init__(self, config: Config, store: CharacterStore, parent=None,
+                 character_id: str | None = None):
         super().__init__(parent)
         self.config = config
         self.store = store
         self.state: dict[str, Any] = {}
-        self.setWindowTitle("新建角色 — VoiceLab")
+        if character_id:
+            self.state["cid"] = character_id
+        self.setWindowTitle("新建角色 — 情感陪伴器" if not character_id
+                            else "训练 / 重训角色 — 情感陪伴器")
         self.resize(900, 660)
         self.setWizardStyle(QWizard.ModernStyle)
         self.setOption(QWizard.NoBackButtonOnStartPage, True)
@@ -111,8 +115,16 @@ class NewCharacterWizard(QWizard):
         self.p4 = SegmentPage(self)
         self.p5 = TrainPage(self)
         self.p6 = PreviewPage(self)
-        for page in (self.p1, self.p2, self.p3, self.p4, self.p5, self.p6):
-            self.addPage(page)
+        self._page_ids = [self.addPage(page) for page in
+                          (self.p1, self.p2, self.p3, self.p4, self.p5, self.p6)]
+        if character_id:
+            # 从角色库进来：跳过「基本信息」，直接到上传素材
+            ch = store.get(character_id)
+            self.p1.name.setText(ch.name)
+            self.p1.persona.setPlainText(ch.persona or "")
+            self.p1.greeting.setText(ch.greeting or "")
+            self.state["name"] = ch.name
+            self.setStartId(self._page_ids[1])
 
     # -- 便捷 ----------------------------------------------------------
     @property
@@ -652,6 +664,10 @@ class TrainPage(QWizardPage):
         self.wiz.training_state.emit(False, "")
         self.completeChanged.emit()
         self._thread = None
+        QMessageBox.information(
+            self, "训练完成",
+            "训练完成，模型已保存。\n\n点「下一步」进入试听，听三句固定文本；"
+            "不满意可以返回上一步换档位重训。")
 
     def _on_failed(self, msg: str) -> None:
         self.status.setText(f"训练失败：{msg}")
