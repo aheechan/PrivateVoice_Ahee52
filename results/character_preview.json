@@ -1,0 +1,41 @@
+{
+  "character_id": "格雷丝-748caf",
+  "generated_at": "2026-11-02T12:10:03+0800",
+  "reference": "C:\\VoiceLab\\characters\\格雷丝-748caf\\reference.wav",
+  "clips": [
+    {
+      "index": 1,
+      "text": "今天有点累，不过见到你就好多了。",
+      "seconds": 2.38,
+      "peak_dbfs": -7.8,
+      "lufs": -25.51,
+      "silence_ratio": 0.436,
+      "speaker_similarity": 0.7096,
+      "elapsed_sec": 13.82,
+      "file": "C:\\VoiceLab\\datasets\\格雷丝-748caf\\preview\\preview_1.wav"
+    },
+    {
+      "index": 2,
+      "text": "你还记得我们上次说的那件事吗？",
+      "seconds": 1.97,
+      "peak_dbfs": -5.4,
+      "lufs": -25.66,
+      "silence_ratio": 0.236,
+      "speaker_similarity": 0.6956,
+      "elapsed_sec": 2.15,
+      "file": "C:\\VoiceLab\\datasets\\格雷丝-748caf\\preview\\preview_2.wav"
+    },
+    {
+      "index": 3,
+      "text": "别急着走，再陪我坐一会儿吧。",
+      "seconds": 2.17,
+      "peak_dbfs": -8.56,
+      "lufs": -25.29,
+      "silence_ratio": 0.47,
+      "speaker_similarity": 0.5854,
+      "elapsed_sec": 2.36,
+      "file": "C:\\VoiceLab\\datasets\\格雷丝-748caf\\preview\\preview_3.wav"
+    }
+  ],
+  "mean_similarity": 0.6635
+}

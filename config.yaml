@@ -1,0 +1,98 @@
+profile: conservative
+paths:
+  models: C:\VoiceLab\GPT-SoVITS\GPT_SoVITS\pretrained_models
+  gpt_sovits: C:\VoiceLab\GPT-SoVITS
+  characters: C:\VoiceLab\characters
+  logs: C:\VoiceLab\logs
+  datasets: C:\VoiceLab\datasets
+  assets: C:\VoiceLab\assets
+  results: C:\VoiceLab\results
+  model_cache: C:\VoiceLab\models
+training:
+  save_recent: 3
+  oom_retries: 3
+  fp16: true
+  cuda_alloc_conf: expandable_segments:True
+  pretrained_s1: s1v3.ckpt
+  pretrained_s2: s2Gv3.pth
+audio:
+  input_device: null
+  output_device: null
+  target_sr: 48000
+  clip_sr: 24000
+  target_lufs: -23.0
+  peak_dbtp: -1.0
+  hp_hz: 60.0
+  noise_probe_sec: 5.0
+  level_green:
+  - -18.0
+  - -12.0
+  level_yellow:
+  - -12.0
+  - -6.0
+qc:
+  min_duration_sec: 45.0
+  pass_max_sec: 90.0
+  truncate_sec: 90.0
+  min_sample_rate: 44100
+  clip_level: 0.99
+  clip_ratio_warn: 0.001
+  min_snr_db: 30.0
+  max_silence_ratio: 0.2
+  allow_multi_speaker_reject: true
+segment:
+  vad_threshold: 0.5
+  min_silence_ms: 300
+  min_speech_sec: 2.0
+  max_speech_sec: 7.0
+  pad_head_ms: 120
+  pad_tail_ms: 180
+  snap_pause_ms: 150
+  snap_pad_ms: 100
+  merge_below_sec: 2.0
+  target_min_clips: 8
+  target_max_clips: 20
+  fade_ms: 10
+label:
+  asr_primary: paraformer-zh
+  asr_fallback: whisper-large-v3
+  punc_model: ct-punc
+  lang: zh
+  rate_slow: 2.5
+  rate_fast: 7.5
+  logprob_warn: -0.6
+  peak_dbfs_red: -0.5
+  dup_similarity: 0.9
+tts:
+  how_to_cut: 按标点符号切
+  top_k: 5
+  top_p: 1.0
+  temperature: 0.6
+  speed: 1.1
+  sample_steps: 4
+  chunk_size_seconds: 0.25
+  enable_cuda_graph: true
+  enable_static_kv: true
+  text_language: 中文
+  prompt_language: 中文
+  device: cuda
+  disable_bigvgan_kernel: true
+  preview_texts:
+  - 今天有点累，不过见到你就好多了。
+  - 你还记得我们上次说的那件事吗？
+  - 别急着走，再陪我坐一会儿吧。
+ui:
+  hotkey: ctrl+alt+space
+  language: zh
+  autostart: false
+  log_level: INFO
+  minimize_to_tray: true
+gpu:
+  supported_sm:
+  - 86
+  - 89
+  - 120
+  min_vram_gb: 12
+  min_compute_cap:
+  - 8
+  - 6

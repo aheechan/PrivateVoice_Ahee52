@@ -1,0 +1,24 @@
+# 环境与缓存
+.venv/
+.uvcache/
+wheels/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+models/
+
+# 运行期数据（体积大、可重建）
+datasets/
+logs/
+results/*.log
+characters/*/checkpoints/*.pth
+characters/*/checkpoints/*.ckpt
+characters/*/dataset/*.wav
+*.vcp
+
+# 上游仓库作为子目录 clone，单独管理，不纳入本仓库
+GPT-SoVITS/
+Aqua-TTS/
+
+tools/vs/
+

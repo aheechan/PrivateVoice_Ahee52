@@ -1,0 +1,202 @@
+"""TTS 引擎接口（本阶段只服务「试听」）。
+
+对话管线属于 Stage 3，这里只定义抽象与 AquaTTS 适配器，不引入 LLM。
+"""
+from __future__ import annotations
+
+import os
+import time
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Iterator
+
+import numpy as np
+
+from . import audio_qc
+
+
+@dataclass
+class AudioChunk:
+    samples: np.ndarray
+    samplerate: int
+
+    @property
+    def seconds(self) -> float:
+        return len(self.samples) / float(self.samplerate or 1)
+
+
+class TTSEngine(ABC):
+    """所有引擎的最小契约。"""
+
+    name: str = "base"
+
+    @abstractmethod
+    def load(self, gpt_ckpt: str, sovits_ckpt: str) -> None: ...
+
+    @abstractmethod
+    def synthesize_stream(self, text: str, reference: str, reference_text: str,
+                          **kwargs: Any) -> Iterator[AudioChunk]: ...
+
+    def synthesize(self, text: str, reference: str, reference_text: str,
+                   **kwargs: Any) -> tuple[np.ndarray, int]:
+        sr = 24000
+        parts: list[np.ndarray] = []
+        for chunk in self.synthesize_stream(text, reference, reference_text, **kwargs):
+            sr = chunk.samplerate
+            parts.append(np.asarray(chunk.samples, dtype=np.float32))
+        if not parts:
+            return np.zeros(0, np.float32), sr
+        return np.concatenate(parts), sr
+
+    def synthesize_file(self, text: str, dest: str | Path, reference: str,
+                        reference_text: str, **kwargs: Any) -> Path:
+        samples, sr = self.synthesize(text, reference, reference_text, **kwargs)
+        return audio_qc.save_wav(dest, samples, sr, subtype="PCM_16")
+
+    @property
+    def loaded(self) -> bool:
+        return getattr(self, "_loaded", False)
+
+
+class AquaTTSEngine(TTSEngine):
+    """GPT-SoVITS v3（经由 Aqua-TTS 的流式封装）。
+
+    Stage 1 结论直接落在这里：
+    - `infer_stream` 产出 `(sample_rate, chunk, text)` 三元组，必须按三元组解包；
+    - BigVGAN 自定义 CUDA 核在本机编不出来，默认关掉，避免每次启动触发编译。
+    """
+
+    name = "gpt-sovits-v3/aqua"
+
+    def __init__(self, cfg: dict[str, Any], gpt_sovits_home: str | Path):
+        self.cfg = cfg
+        self.home = Path(gpt_sovits_home)
+        self._infer = None
+        self._loaded = False
+        self._ckpt: tuple[str, str] = ("", "")
+        self.load_seconds: float = 0.0
+        self.last_ttfp_ms: float | None = None
+
+    # -- 加载 ----------------------------------------------------------
+    def _prepare_env(self) -> None:
+        os.environ.setdefault("GPT_SOVITS_HOME", str(self.home))
+        os.environ.setdefault("ENABLE_CUDA_GRAPH", "1")
+        if self.cfg.get("disable_bigvgan_kernel", True):
+            os.environ["BIGVGAN_USE_CUDA_KERNEL"] = "0"
+        os.environ.setdefault("PYTHONUTF8", "1")
+
+    def load(self, gpt_ckpt: str, sovits_ckpt: str, force: bool = False) -> None:
+        if self._loaded and not force and self._ckpt == (str(gpt_ckpt), str(sovits_ckpt)):
+            return
+        self._prepare_env()
+        # 上游 G2PW 按进程 CWD 解析 GPT_SoVITS/text/G2PWModel
+        os.chdir(self.home)
+        from aquatts import TTSInferencer
+
+        t0 = time.perf_counter()
+        self._infer = TTSInferencer(
+            device=self.cfg.get("device", "cuda"),
+            gpt_path=str(gpt_ckpt),
+            sovits_path=str(sovits_ckpt),
+        )
+        self.load_seconds = time.perf_counter() - t0
+        self._ckpt = (str(gpt_ckpt), str(sovits_ckpt))
+        self._loaded = True
+
+    def unload(self) -> None:
+        self._infer = None
+        self._loaded = False
+        try:
+            import torch
+            torch.cuda.empty_cache()
+        except Exception:
+            pass
+
+    # -- 推理 ----------------------------------------------------------
+    def synthesize_stream(self, text: str, reference: str, reference_text: str,
+                          **kwargs: Any) -> Iterator[AudioChunk]:
+        if not self._loaded:
+            raise RuntimeError("TTS 引擎尚未加载")
+        params: dict[str, Any] = {
+            "text": text,
+            "ref_audio_path": str(reference),
+            "prompt_text": reference_text,
+            "text_language": self.cfg.get("text_language", "中文"),
+            "prompt_language": self.cfg.get("prompt_language", "中文"),
+            "how_to_cut": self.cfg.get("how_to_cut", "按标点符号切"),
+            "top_k": self.cfg.get("top_k", 5),
+            "top_p": self.cfg.get("top_p", 1.0),
+            "temperature": self.cfg.get("temperature", 0.6),
+            "speed": self.cfg.get("speed", 1.1),
+            "sample_steps": self.cfg.get("sample_steps", 4),
+            "enable_cuda_graph": self.cfg.get("enable_cuda_graph", True),
+            "enable_static_kv": self.cfg.get("enable_static_kv", True),
+            "chunk_size_seconds": self.cfg.get("chunk_size_seconds", 0.25),
+        }
+        params.update(kwargs)
+        t0 = time.perf_counter()
+        first = True
+        for item in self._infer.infer_stream(**params):
+            # 三元组 (sr, chunk, text)
+            if isinstance(item, tuple) and len(item) == 3:
+                sr, chunk, _seg = item
+            elif isinstance(item, tuple) and len(item) == 2:
+                sr, chunk = item
+            else:
+                continue
+            if chunk is None:
+                continue
+            arr = np.asarray(chunk, dtype=np.float32).reshape(-1)
+            if arr.size == 0:
+                continue
+            if first:
+                self.last_ttfp_ms = (time.perf_counter() - t0) * 1000.0
+                first = False
+            yield AudioChunk(samples=arr, samplerate=int(sr or 24000))
+
+    # -- 诊断 ----------------------------------------------------------
+    def backend_info(self) -> dict[str, Any]:
+        if not self._infer:
+            return {}
+        decoder = getattr(getattr(self._infer, "t2s_model", None), "model", None)
+        return {
+            "bigvgan_kernel_mode": getattr(self._infer, "bigvgan_kernel_mode", None),
+            "flash_attn_active": bool(getattr(decoder, "use_flash_attn_kvcache", False)),
+            "kv_cache_layout": getattr(decoder, "kv_cache_layout", None),
+            "bucketed_graphs": len(getattr(decoder, "bucket_graphs", {}) or {}),
+        }
+
+
+def make_engine(config: Any) -> TTSEngine:
+    return AquaTTSEngine(config.data.get("tts", {}), config.path_of("gpt_sovits"))
+
+
+def preview_sentences(config: Any) -> list[str]:
+    return list(config.data.get("tts", {}).get("preview_texts", []))
+
+
+def synthesize_preview(engine: TTSEngine, config: Any, character: dict[str, Any],
+                       out_dir: str | Path, progress=None) -> list[Path]:
+    """三句固定文本合成，供向导第 6 步试听。"""
+    voice = character.get("voice", {})
+    gpt = voice.get("gpt_ckpt") or ""
+    sovits = voice.get("sovits_ckpt") or ""
+    char_dir = Path(character.get("_dir", ""))
+    ref = char_dir / (voice.get("reference") or "reference.wav")
+    ref_text = voice.get("reference_text") or ""
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    engine.load(gpt, sovits)
+    outs: list[Path] = []
+    for i, text in enumerate(preview_sentences(config), start=1):
+        if progress:
+            progress(i, len(preview_sentences(config)), text)
+        dest = out_dir / f"preview_{i}.wav"
+        engine.synthesize_file(text, dest, str(ref), ref_text)
+        outs.append(dest)
+    return outs
+
+
+__all__ = ["AudioChunk", "TTSEngine", "AquaTTSEngine", "make_engine",
+           "preview_sentences", "synthesize_preview"]

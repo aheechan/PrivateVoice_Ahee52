@@ -1,0 +1,571 @@
+{
+  "group": "default",
+  "timestamp": "2026-11-01T22:40:55+0800",
+  "device": "NVIDIA GeForce RTX 3090",
+  "compute_capability": "8.6",
+  "torch": "2.11.0+cu128",
+  "torch_cuda": "12.8",
+  "python": "3.12.10",
+  "gpt_checkpoint": "C:\\VoiceLab\\GPT-SoVITS\\GPT_SoVITS\\pretrained_models\\s1v3.ckpt",
+  "sovits_checkpoint": "C:\\VoiceLab\\GPT-SoVITS\\GPT_SoVITS\\pretrained_models\\s2Gv3.pth",
+  "reference_audio": "C:\\VoiceLab\\assets\\ref.wav",
+  "reference_text": "﻿伊丽莎白斯坦顿是吗？是什么？那束光会不会？吧！这个是连读的是吗？那那应该怎么读？玛丽沃斯通克？",
+  "protocol": {
+    "how_to_cut": "按标点符号切",
+    "top_k": 5,
+    "top_p": 1,
+    "temperature": 0.6,
+    "speed": 1.1,
+    "sample_steps": 4,
+    "chunk_size_seconds": 0.25,
+    "enable_cuda_graph": true,
+    "enable_static_kv": true
+  },
+  "load_seconds": 26.64,
+  "backend": {
+    "bigvgan_kernel_mode": "pytorch",
+    "bigvgan_use_cuda_kernel_attr": false,
+    "flash_attn_active": false,
+    "kv_cache_layout": "bucket",
+    "bucketed_graphs": 6
+  },
+  "tiers": {
+    "short": {
+      "chars_cjk": 5,
+      "chars_total": 5,
+      "text": "今天有点累",
+      "runs": 20,
+      "warmup": 5,
+      "ttfp_p50_ms": 354.59,
+      "ttfp_p95_ms": 715.71,
+      "ttfp_min_ms": 307.14,
+      "ttfp_max_ms": 735.32,
+      "total_p50_ms": 1283.29,
+      "total_p95_ms": 1692.74,
+      "audio_sec_p50": 1.303,
+      "rtf_p50": 0.8985,
+      "vram_peak_alloc_gb": 2.173,
+      "vram_peak_reserved_gb": 2.32,
+      "raw": [
+        {
+          "ttfp_ms": 527.1360999977333,
+          "total_ms": 1315.6639000008,
+          "audio_sec": 1.2233333333333334,
+          "rtf": 1.0754745776573296,
+          "chunks": 5,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 309.215100001893,
+          "total_ms": 1011.0111999965739,
+          "audio_sec": 1.226,
+          "rtf": 0.8246420880885594,
+          "chunks": 6,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 374.4652000023052,
+          "total_ms": 1580.1126000005752,
+          "audio_sec": 1.44,
+          "rtf": 1.0973004166670661,
+          "chunks": 7,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 528.8103999992018,
+          "total_ms": 1523.2901999988826,
+          "audio_sec": 1.3946666666666667,
+          "rtf": 1.0922252868060822,
+          "chunks": 6,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 361.8796000009752,
+          "total_ms": 1548.5088000059477,
+          "audio_sec": 1.6273333333333333,
+          "rtf": 0.9515621466648593,
+          "chunks": 7,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 308.8045000040438,
+          "total_ms": 994.5776000022306,
+          "audio_sec": 1.296,
+          "rtf": 0.7674209876560422,
+          "chunks": 6,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 357.63630000292324,
+          "total_ms": 1537.875100002566,
+          "audio_sec": 1.472,
+          "rtf": 1.044752105980004,
+          "chunks": 7,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 307.1388000025763,
+          "total_ms": 985.6686999992235,
+          "audio_sec": 1.296,
+          "rtf": 0.7605468364191539,
+          "chunks": 6,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 336.2578000014764,
+          "total_ms": 1036.2745000020368,
+          "audio_sec": 1.286,
+          "rtf": 0.8058122083997176,
+          "chunks": 6,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 333.7365999977919,
+          "total_ms": 1050.5553999973927,
+          "audio_sec": 1.232,
+          "rtf": 0.8527235389589226,
+          "chunks": 6,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 351.5447000027052,
+          "total_ms": 1250.9243000022252,
+          "audio_sec": 1.48,
+          "rtf": 0.8452191216231252,
+          "chunks": 7,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 735.3164999949513,
+          "total_ms": 1460.5574999950477,
+          "audio_sec": 1.3773333333333333,
+          "rtf": 1.0604241287476146,
+          "chunks": 6,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 713.6405000055674,
+          "total_ms": 1737.1791000041412,
+          "audio_sec": 1.272,
+          "rtf": 1.3657068396258971,
+          "chunks": 6,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 715.7117999959155,
+          "total_ms": 1692.7377999963937,
+          "audio_sec": 1.326,
+          "rtf": 1.2765745098012018,
+          "chunks": 6,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 323.38820000586566,
+          "total_ms": 1031.960500004061,
+          "audio_sec": 1.296,
+          "rtf": 0.796265817904368,
+          "chunks": 6,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 549.6261000007507,
+          "total_ms": 1369.2353999940678,
+          "audio_sec": 1.2846666666666666,
+          "rtf": 1.0658293201822013,
+          "chunks": 5,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 307.59770000440767,
+          "total_ms": 1000.7229000038933,
+          "audio_sec": 1.232,
+          "rtf": 0.8122750811719913,
+          "chunks": 6,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 348.2600999996066,
+          "total_ms": 1065.9033999982057,
+          "audio_sec": 1.4046666666666667,
+          "rtf": 0.7588301376351725,
+          "chunks": 6,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 497.3653999986709,
+          "total_ms": 1380.4168999995454,
+          "audio_sec": 1.462,
+          "rtf": 0.944197606018841,
+          "chunks": 7,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 307.92940000537783,
+          "total_ms": 1008.3617999989656,
+          "audio_sec": 1.3106666666666666,
+          "rtf": 0.7693503051874102,
+          "chunks": 6,
+          "sample_rate": 24000
+        }
+      ]
+    },
+    "medium": {
+      "chars_cjk": 20,
+      "chars_total": 21,
+      "text": "今天有点累不过还好，晚上想吃点热乎的汤面吧",
+      "runs": 20,
+      "warmup": 5,
+      "ttfp_p50_ms": 393.54,
+      "ttfp_p95_ms": 499.88,
+      "ttfp_min_ms": 362.25,
+      "ttfp_max_ms": 650.68,
+      "total_p50_ms": 3765.85,
+      "total_p95_ms": 4499.63,
+      "audio_sec_p50": 4.586,
+      "rtf_p50": 0.8247,
+      "vram_peak_alloc_gb": 2.178,
+      "vram_peak_reserved_gb": 2.324,
+      "raw": [
+        {
+          "ttfp_ms": 397.44210000208113,
+          "total_ms": 3703.3964000002015,
+          "audio_sec": 4.389333333333333,
+          "rtf": 0.8437263973268989,
+          "chunks": 19,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 407.05940000043483,
+          "total_ms": 3427.4148999975296,
+          "audio_sec": 4.282,
+          "rtf": 0.8004238439975547,
+          "chunks": 19,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 387.64049999736017,
+          "total_ms": 3796.181899997464,
+          "audio_sec": 4.594,
+          "rtf": 0.8263347627334487,
+          "chunks": 21,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 650.6800999995903,
+          "total_ms": 3327.651400002651,
+          "audio_sec": 3.8926666666666665,
+          "rtf": 0.8548513615351904,
+          "chunks": 17,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 375.1554999980726,
+          "total_ms": 3775.5449999967823,
+          "audio_sec": 4.793333333333333,
+          "rtf": 0.787665855353988,
+          "chunks": 20,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 362.2504000013578,
+          "total_ms": 4472.716500000388,
+          "audio_sec": 5.178,
+          "rtf": 0.863792294322207,
+          "chunks": 23,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 423.9316000021063,
+          "total_ms": 3697.3838000049,
+          "audio_sec": 4.3933333333333335,
+          "rtf": 0.8415896358129514,
+          "chunks": 20,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 431.4597999982652,
+          "total_ms": 3833.9904000022216,
+          "audio_sec": 4.658,
+          "rtf": 0.8230979819669861,
+          "chunks": 21,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 401.60309999919264,
+          "total_ms": 3428.897199999483,
+          "audio_sec": 4.322,
+          "rtf": 0.7933589079128835,
+          "chunks": 19,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 372.63639999582665,
+          "total_ms": 3762.5437999959104,
+          "audio_sec": 4.752666666666666,
+          "rtf": 0.7916700378726141,
+          "chunks": 21,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 374.22760000481503,
+          "total_ms": 3527.0094000006793,
+          "audio_sec": 4.192,
+          "rtf": 0.8413667461833682,
+          "chunks": 18,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 371.45410000084667,
+          "total_ms": 3549.5069999960833,
+          "audio_sec": 4.6866666666666665,
+          "rtf": 0.7573628022751245,
+          "chunks": 20,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 366.0719000035897,
+          "total_ms": 3897.5916000053985,
+          "audio_sec": 4.536666666666667,
+          "rtf": 0.859131138869669,
+          "chunks": 20,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 393.1201000013971,
+          "total_ms": 3811.107700006687,
+          "audio_sec": 4.578,
+          "rtf": 0.8324831148987957,
+          "chunks": 20,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 380.9285000024829,
+          "total_ms": 3614.122300001327,
+          "audio_sec": 4.546,
+          "rtf": 0.7950115046197375,
+          "chunks": 20,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 428.2597999990685,
+          "total_ms": 4499.626699995133,
+          "audio_sec": 4.653333333333333,
+          "rtf": 0.9669684885376361,
+          "chunks": 20,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 499.87700000201585,
+          "total_ms": 4321.780600002967,
+          "audio_sec": 5.392,
+          "rtf": 0.8015171735910547,
+          "chunks": 23,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 368.14610000146786,
+          "total_ms": 3769.164400000591,
+          "audio_sec": 4.692666666666667,
+          "rtf": 0.8032030970309542,
+          "chunks": 20,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 393.9648000014131,
+          "total_ms": 3431.2313000045833,
+          "audio_sec": 4.219333333333333,
+          "rtf": 0.8132164559972942,
+          "chunks": 19,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 398.6291999972309,
+          "total_ms": 4945.698299998185,
+          "audio_sec": 5.688666666666666,
+          "rtf": 0.8693949900383543,
+          "chunks": 24,
+          "sample_rate": 24000
+        }
+      ]
+    },
+    "long": {
+      "chars_cjk": 50,
+      "chars_total": 53,
+      "text": "今天有点累不过还好，下午开了两个会脑子有点转不动，晚上想吃点热的然后早点睡觉，明天再慢慢处理剩下的所有事情",
+      "runs": 20,
+      "warmup": 5,
+      "ttfp_p50_ms": 414.28,
+      "ttfp_p95_ms": 818.4,
+      "ttfp_min_ms": 345.81,
+      "ttfp_max_ms": 1159.73,
+      "total_p50_ms": 8420.8,
+      "total_p95_ms": 9161.34,
+      "audio_sec_p50": 10.198,
+      "rtf_p50": 0.8267,
+      "vram_peak_alloc_gb": 2.186,
+      "vram_peak_reserved_gb": 2.324,
+      "raw": [
+        {
+          "ttfp_ms": 405.408599996008,
+          "total_ms": 8281.63510000013,
+          "audio_sec": 10.404,
+          "rtf": 0.7960049115724847,
+          "chunks": 44,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 345.8078000039677,
+          "total_ms": 8232.330500002718,
+          "audio_sec": 9.835333333333333,
+          "rtf": 0.837015912018171,
+          "chunks": 42,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 415.00989999622107,
+          "total_ms": 8563.84909999906,
+          "audio_sec": 10.182666666666666,
+          "rtf": 0.8410222371349084,
+          "chunks": 44,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 418.10500000428874,
+          "total_ms": 8279.515100002754,
+          "audio_sec": 10.05,
+          "rtf": 0.8238323482589804,
+          "chunks": 44,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 402.3901999971713,
+          "total_ms": 8988.266499996826,
+          "audio_sec": 10.899333333333333,
+          "rtf": 0.824662043549773,
+          "chunks": 47,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 383.00100000196835,
+          "total_ms": 7391.064800001914,
+          "audio_sec": 9.474666666666666,
+          "rtf": 0.7800870531946856,
+          "chunks": 41,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 403.167399999802,
+          "total_ms": 8561.045599999488,
+          "audio_sec": 10.214,
+          "rtf": 0.8381677697277744,
+          "chunks": 45,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 446.58440000057453,
+          "total_ms": 8567.208400003437,
+          "audio_sec": 10.251333333333333,
+          "rtf": 0.8357164986671755,
+          "chunks": 44,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 578.5748999987845,
+          "total_ms": 8181.575299997348,
+          "audio_sec": 9.873333333333333,
+          "rtf": 0.8286538116135059,
+          "chunks": 41,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 422.84900000231573,
+          "total_ms": 8063.244500001019,
+          "audio_sec": 10.012666666666666,
+          "rtf": 0.8053043977629356,
+          "chunks": 44,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 818.4033000070485,
+          "total_ms": 9345.703300001333,
+          "audio_sec": 10.952,
+          "rtf": 0.8533330259314584,
+          "chunks": 46,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 411.88330000295537,
+          "total_ms": 8520.451900003536,
+          "audio_sec": 10.477333333333334,
+          "rtf": 0.8132271474933382,
+          "chunks": 45,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 399.6887999965111,
+          "total_ms": 7754.205599994748,
+          "audio_sec": 9.779333333333334,
+          "rtf": 0.7929176085617371,
+          "chunks": 43,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 347.50480000366224,
+          "total_ms": 8587.143400000059,
+          "audio_sec": 11.096666666666666,
+          "rtf": 0.7738489095824626,
+          "chunks": 47,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 396.2262999993982,
+          "total_ms": 7775.117400000454,
+          "audio_sec": 9.55,
+          "rtf": 0.814148418848215,
+          "chunks": 41,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 1159.7290999998222,
+          "total_ms": 9161.34229999443,
+          "audio_sec": 10.301333333333334,
+          "rtf": 0.8893355843898295,
+          "chunks": 43,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 612.9851000005146,
+          "total_ms": 8585.676999995485,
+          "audio_sec": 10.264,
+          "rtf": 0.8364845089629273,
+          "chunks": 45,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 422.8064999988419,
+          "total_ms": 7986.1954000007245,
+          "audio_sec": 10.256666666666666,
+          "rtf": 0.7786345856354298,
+          "chunks": 43,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 413.5478000025614,
+          "total_ms": 8553.875600002357,
+          "audio_sec": 9.457333333333333,
+          "rtf": 0.9044701395744774,
+          "chunks": 42,
+          "sample_rate": 24000
+        },
+        {
+          "ttfp_ms": 594.4543000005069,
+          "total_ms": 8321.152599994093,
+          "audio_sec": 9.779333333333334,
+          "rtf": 0.850891601335547,
+          "chunks": 42,
+          "sample_rate": 24000
+        }
+      ]
+    }
+  }
+}

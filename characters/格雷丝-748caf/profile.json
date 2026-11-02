@@ -1,0 +1,28 @@
+{
+  "id": "格雷丝-748caf",
+  "name": "格雷丝",
+  "avatar": "",
+  "persona": "沉稳温柔的播客女声，语速偏慢，句尾会轻轻收住。",
+  "system_prompt_ref": "prompts/companion_system.txt",
+  "greeting": "嗯，我在。今天想聊点什么？",
+  "llm": {
+    "temperature": 0.8,
+    "max_tokens": 256
+  },
+  "voice": {
+    "mode": "finetune",
+    "engine": "gpt-sovits-v3",
+    "gpt_ckpt": "C:\\VoiceLab\\GPT-SoVITS\\GPT_weights_v3\\vlab_格雷丝-e8.ckpt",
+    "sovits_ckpt": "C:\\VoiceLab\\GPT-SoVITS\\SoVITS_weights_v3\\vlab_格雷丝_e8_s200_l32.pth",
+    "reference": "reference.wav",
+    "reference_text": "你刚才看是放手上面还是放下来歪哦，来喽，保一条吧，直接开始就可以了啊。"
+  },
+  "dataset": {
+    "duration_sec": 41.8,
+    "clips": 10,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "status": "ready",
+  "created_at": "2026-11-02T11:51:54+0800",
+  "last_used": "2026-11-02T12:12:32+0800"
+}
