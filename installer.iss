@@ -12,11 +12,11 @@ AppId={{9F1C2B44-7C3A-4E7B-9C1D-2A6F5E8B0C31}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
-DefaultDirName={autopf}\{#MyAppName}
+DefaultDirName={autopf}\VoiceCompanion_v1
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 OutputDir=C:\VoiceLab\dist\installer
-OutputBaseFilename=情感陪伴器_v1_Setup
+OutputBaseFilename=VoiceCompanion_v1_Setup
 SetupIconFile=C:\VoiceLab\dist\app.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 Compression=none
@@ -38,7 +38,7 @@ Name: "chinese"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "创建桌面快捷方式"; GroupDescription: "快捷方式："
 
 [Files]
-Source: "C:\VoiceLab\dist\情感陪伴器_v1\*"; DestDir: "{app}"; \
+Source: "C:\VoiceLab\dist\VoiceCompanion_v1\*"; DestDir: "{app}"; \
   Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]

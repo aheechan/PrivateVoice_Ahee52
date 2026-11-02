@@ -127,6 +127,8 @@ class Pipeline:
 
         self._cancel = threading.Event()
         self._lock = threading.RLock()
+        self._warmup_done = threading.Event()
+        self._warming = False
         self._turn_lock = threading.Lock()
         self._tts_lock = threading.RLock()
         self._tts_stop = threading.Event()
@@ -185,8 +187,13 @@ class Pipeline:
             return self._tts
 
     def warmup(self) -> dict[str, Any]:
-        """启动预热：ASR 跑一段静音，TTS 加载模型。"""
+        """启动预热：ASR 跑一段静音，TTS 加载模型。
+
+        预热期间其它轮次必须等它结束——ASR 与 TTS 同时抢 GPU 会让 v3 的
+        CUDA Graph 解码卡死（实测过）。
+        """
         out: dict[str, Any] = {}
+        self._warming = True
         t0 = time.perf_counter()
         try:
             out["asr_ms"] = round(self.asr.warmup(), 1)
@@ -209,9 +216,15 @@ class Pipeline:
         except Exception as exc:  # noqa: BLE001
             out["tts_error"] = str(exc)
         out["total_s"] = round(time.perf_counter() - t0, 2)
+        self._warming = False
+        self._warmup_done.set()
         return out
 
     # -- 一轮 ----------------------------------------------------------
+    @property
+    def is_warm(self) -> bool:
+        return self._warmup_done.is_set()
+
     def _reset_timing(self) -> None:
         self._t_asr = self._t_llm = self._t_tts = 0.0
         self._first_play_logged = False
@@ -355,6 +368,12 @@ class Pipeline:
                         t_press=self._t_press, t_release=self._t_release)
         cancel = self._cancel
         try:
+            # 预热没结束就先等——ASR/TTS 同时抢 GPU 会让 v3 CUDA Graph 卡死
+            if self._warming and not self._warmup_done.wait(timeout=90):
+                self._emit("error", text="模型还在预热，请再说一次")
+                self.metrics.append(m)
+                self._set_state(State.IDLE)
+                return
             # ---- ASR ----
             if preset_text is not None:
                 user_text = preset_text

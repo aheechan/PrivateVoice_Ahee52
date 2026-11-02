@@ -61,6 +61,7 @@ class Bridge(QObject):
     pressed = Signal()
     released = Signal()
     hotkeyError = Signal(str)
+    warmupFinished = Signal(object)
 
 
 class MainController(QObject):
@@ -75,6 +76,7 @@ class MainController(QObject):
         self.bridge.pressed.connect(self._on_press)
         self.bridge.released.connect(self._on_release)
         self.bridge.stateChanged.connect(self._on_state)
+        self.bridge.warmupFinished.connect(self._on_warmup_finished)
         self.bridge.error.connect(self._on_error)
         self.bridge.info.connect(lambda t: self.log.info("pipeline: %s", t))
 
@@ -220,12 +222,27 @@ class MainController(QObject):
     def _warmup(self) -> None:
         pipe = self.pipeline
         if pipe is None:
+            self.bridge.warmupFinished.emit({})
             return
         try:
             info = pipe.warmup()
             self.log.info("预热完成：%s", info)
+            self.bridge.warmupFinished.emit(info)
         except Exception as exc:  # noqa: BLE001
             self.log.warning("预热失败：%s", exc)
+            self.bridge.warmupFinished.emit({"error": str(exc)})
+
+    def _on_warmup_finished(self, info: dict) -> None:
+        if self._main is None:
+            return
+        self._main.set_warm(True)
+        if info and "tts_error" not in info:
+            self._main.set_warmup_status(
+                f"预热完成：ASR {info.get('asr_ms', 0)/1000:.1f}s · "
+                f"TTS 加载 {info.get('tts_load_s', 0)}s · "
+                f"试合成 {info.get('tts_prime_s', 0)}s")
+        elif info.get("error"):
+            self._main.set_warmup_status(f"预热失败：{info['error']}")
 
     # -- 菜单动作 -------------------------------------------------------
     def retry_last(self) -> None:
@@ -290,6 +307,8 @@ class MainController(QObject):
             self.bridge.turnDone.connect(self._main.show_reply)
             self.bridge.error.connect(self._main.show_error)
         self._main.set_character(self._current_character())
+        pipe = self.pipeline
+        self._main.set_warm(bool(pipe is not None and pipe.is_warm))
         self._main.show()
         self._main.raise_()
         self._main.activateWindow()
@@ -512,6 +531,10 @@ def main() -> int:
         QMessageBox.critical(None, APP_NAME, message)
         return 2
     log.info("硬件检查通过：%s", message)
+
+    # 安装路径含中文时给个明确提醒：部分 CUDA / 音频组件对非 ASCII 路径不稳
+    if any(ord(ch) > 127 for ch in str(ROOT)):
+        log.warning("安装路径包含非 ASCII 字符：%s", ROOT)
 
     app.setWindowIcon(make_icon("idle"))
 

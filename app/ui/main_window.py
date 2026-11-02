@@ -172,6 +172,18 @@ class MainWindow(QWidget):
     def set_warmup_status(self, text: str) -> None:
         self.warm_hint.setText(text)
 
+    def set_warm(self, warm: bool) -> None:
+        """预热期间禁用输入，避免和预热抢 GPU（会让 v3 CUDA Graph 卡死）。"""
+        self._warm = warm
+        ready = bool(self._character and self._character.status == "ready")
+        self.input.setEnabled(ready and warm)
+        self.btn_send.setEnabled(ready and warm)
+        self.talk.setEnabled(ready and warm)
+        if not warm:
+            self.warm_hint.setText("正在预热模型（约 30 秒），完成后自动恢复输入…")
+        elif not self.warm_hint.text():
+            self.warm_hint.setText("")
+
     # -- 数据 ----------------------------------------------------------
     def set_character(self, character) -> None:
         self._character = character
@@ -192,8 +204,8 @@ class MainWindow(QWidget):
         av = self.store.avatar_path(character.id) if character else None
         self.avatar.setPixmap(_avatar_pixmap(av, initial=character.name))
         self.talk.setEnabled(character.status == "ready")
-        self.input.setEnabled(character.status == "ready")
-        self.btn_send.setEnabled(character.status == "ready")
+        self.input.setEnabled(character.status == "ready" and getattr(self, "_warm", True))
+        self.btn_send.setEnabled(character.status == "ready" and getattr(self, "_warm", True))
         self._load_history(character)
 
     def _load_history(self, character) -> None:
