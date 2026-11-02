@@ -127,8 +127,10 @@ class Pipeline:
 
         self._cancel = threading.Event()
         self._lock = threading.RLock()
-        self._warmup_done = threading.Event()
-        self._warming = False
+        self._tts_ready = threading.Event()
+        self._asr_ready = threading.Event()
+        self._tts_warming = False
+        self._asr_warming = False
         self._turn_lock = threading.Lock()
         self._tts_lock = threading.RLock()
         self._tts_stop = threading.Event()
@@ -186,29 +188,23 @@ class Pipeline:
                 self._emit("info", text="TTS 引擎复用（已加载）")
             return self._tts
 
-    def warmup(self) -> dict[str, Any]:
-        """启动预热：ASR 跑一段静音，TTS 加载模型。
+    def warm_tts(self) -> dict[str, Any]:
+        """第一段预热：只加载 TTS（约 18s），完成后就可以放开输入。
 
-        预热期间其它轮次必须等它结束——ASR 与 TTS 同时抢 GPU 会让 v3 的
-        CUDA Graph 解码卡死（实测过）。
+        不能和 ASR 预热并发——两者同时抢 GPU 会让 v3 的 CUDA Graph 解码卡死。
         """
         out: dict[str, Any] = {}
-        self._warming = True
+        self._tts_warming = True
         t0 = time.perf_counter()
-        try:
-            out["asr_ms"] = round(self.asr.warmup(), 1)
-        except Exception as exc:  # noqa: BLE001
-            out["asr_error"] = str(exc)
         try:
             t1 = time.perf_counter()
             engine = self._ensure_tts()
             out["tts_load_s"] = round(time.perf_counter() - t1, 2)
-            # 文本前端（G2PW/BERT）首次调用很贵，预热时先合成一句丢掉
             ch = self.character
             ref = str(self.store.dir_of(ch.id) /
                       (ch.voice.get("reference") or "reference.wav"))
             t2 = time.perf_counter()
-            with self._tts_lock:      # 和正常合成串行，避免两个线程同时用同一个引擎
+            with self._tts_lock:
                 for _ in engine.synthesize_stream("你好。", ref,
                                                   ch.voice.get("reference_text", "")):
                     pass
@@ -216,14 +212,35 @@ class Pipeline:
         except Exception as exc:  # noqa: BLE001
             out["tts_error"] = str(exc)
         out["total_s"] = round(time.perf_counter() - t0, 2)
-        self._warming = False
-        self._warmup_done.set()
+        self._tts_warming = False
+        self._tts_ready.set()
+        return out
+
+    def warm_asr(self) -> dict[str, Any]:
+        """第二段预热：ASR 跑一段静音。它在后台跑，期间轮次会等它。"""
+        out: dict[str, Any] = {}
+        self._asr_warming = True
+        t0 = time.perf_counter()
+        try:
+            out["asr_ms"] = round(self.asr.warmup(), 1)
+        except Exception as exc:  # noqa: BLE001
+            out["asr_error"] = str(exc)
+        out["asr_total_s"] = round(time.perf_counter() - t0, 2)
+        self._asr_warming = False
+        self._asr_ready.set()
+        return out
+
+    def warmup(self) -> dict[str, Any]:
+        """一次性跑完两段（自检/测试用）。"""
+        out = self.warm_tts()
+        out.update(self.warm_asr())
         return out
 
     # -- 一轮 ----------------------------------------------------------
     @property
     def is_warm(self) -> bool:
-        return self._warmup_done.is_set()
+        """TTS 就绪即可放开输入；ASR 还在后台预热。"""
+        return self._tts_ready.is_set()
 
     def _reset_timing(self) -> None:
         self._t_asr = self._t_llm = self._t_tts = 0.0
@@ -368,17 +385,17 @@ class Pipeline:
                         t_press=self._t_press, t_release=self._t_release)
         cancel = self._cancel
         try:
-            # 预热没结束就先等——ASR/TTS 同时抢 GPU 会让 v3 CUDA Graph 卡死
-            if self._warming and not self._warmup_done.wait(timeout=90):
-                self._emit("error", text="模型还在预热，请再说一次")
-                self.metrics.append(m)
-                self._set_state(State.IDLE)
-                return
             # ---- ASR ----
             if preset_text is not None:
                 user_text = preset_text
                 self._t_asr = time.perf_counter()
             else:
+                # 只有真要用 ASR 时才等它预热完（文字输入不需要）
+                if self._asr_warming and not self._asr_ready.wait(timeout=90):
+                    self._emit("error", text="识别模型还在加载，请再说一次")
+                    self.metrics.append(m)
+                    self._set_state(State.IDLE)
+                    return
                 y16 = to_16k(samples, sr)
                 res = self.asr.transcribe(y16)
                 self._t_asr = time.perf_counter()

@@ -62,6 +62,7 @@ class Bridge(QObject):
     released = Signal()
     hotkeyError = Signal(str)
     warmupFinished = Signal(object)
+    asrWarmed = Signal(object)
 
 
 class MainController(QObject):
@@ -77,6 +78,7 @@ class MainController(QObject):
         self.bridge.released.connect(self._on_release)
         self.bridge.stateChanged.connect(self._on_state)
         self.bridge.warmupFinished.connect(self._on_warmup_finished)
+        self.bridge.asrWarmed.connect(self._on_asr_warmed)
         self.bridge.error.connect(self._on_error)
         self.bridge.info.connect(lambda t: self.log.info("pipeline: %s", t))
 
@@ -220,22 +222,41 @@ class MainController(QObject):
 
     # -- 预热 ----------------------------------------------------------
     def _warmup(self) -> None:
+        """两段预热：先 TTS（约 18s，完成后放开输入），再后台加载 ASR。"""
         pipe = self.pipeline
         if pipe is None:
             self.bridge.warmupFinished.emit({})
             return
         try:
-            info = pipe.warmup()
-            self.log.info("预热完成：%s", info)
-            self.bridge.warmupFinished.emit(info)
+            tts_info = pipe.warm_tts()
+            self.log.info("TTS 预热完成：%s", tts_info)
+            self.bridge.warmupFinished.emit(tts_info)
         except Exception as exc:  # noqa: BLE001
-            self.log.warning("预热失败：%s", exc)
+            self.log.warning("TTS 预热失败：%s", exc)
             self.bridge.warmupFinished.emit({"error": str(exc)})
+            return
+        try:
+            asr_info = pipe.warm_asr()
+            self.log.info("ASR 预热完成：%s", asr_info)
+            self.bridge.asrWarmed.emit(asr_info)
+        except Exception as exc:  # noqa: BLE001
+            self.log.warning("ASR 预热失败：%s", exc)
+            self.bridge.asrWarmed.emit({"error": str(exc)})
+
+    def _on_asr_warmed(self, info: dict) -> None:
+        if info.get("asr_error"):
+            self.log.warning("ASR 预热失败：%s", info["asr_error"])
+            return
+        self.log.info("ASR 预热完成：%s", info)
+        if self._main is not None:
+            self._main.set_warmup_status(
+                f"全部就绪：语音合成已加载，识别模型 {info.get('asr_total_s', 0)}s 内加载完成")
 
     def _on_warmup_finished(self, info: dict) -> None:
         ok = bool(info) and "tts_error" not in info and not info.get("error")
         if ok:
-            self.tray.notify("预热完成", "可以按住热键说话了（也可以在窗口里直接打字）", 4000)
+            self.tray.notify("语音已就绪",
+                             "可以说话了。识别模型还在后台加载，第一次录音会稍慢。", 4000)
         elif info.get("error") or info.get("tts_error"):
             self.tray.notify("预热失败", str(info.get("error") or info.get("tts_error"))[:120],
                              6000)
