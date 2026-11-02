@@ -51,6 +51,7 @@ class HotkeySpec:
     mods: int
     vk: int
     label: str
+    passive: bool = False     # True = 只按修饰键（如 shift），用轮询而不是 RegisterHotKey
 
     @property
     def mod_keys(self) -> list[int]:
@@ -83,7 +84,22 @@ def parse_spec(spec: str) -> HotkeySpec:
         elif part:
             key = part
     if not key:
-        raise HotkeyError(f"热键 {spec!r} 里没有主键（例如 shift+a）")
+        # 只按修饰键（shift / ctrl+alt）：RegisterHotKey 不支持单独注册修饰键，
+        # 改用轮询检测按下/松开。
+        if not mods:
+            raise HotkeyError(f"热键 {spec!r} 无法解析")
+        if mods == MOD_SHIFT:
+            vk, label = 0x10, "SHIFT"
+        elif mods == MOD_CONTROL:
+            vk, label = 0x11, "CTRL"
+        elif mods == MOD_ALT:
+            vk, label = 0x12, "ALT"
+        elif mods == MOD_WIN:
+            vk, label = 0x5B, "WIN"
+        else:
+            vk = 0x10
+            label = "+".join(p.upper() for p in parts if p in MOD_NAMES)
+        return HotkeySpec(mods=mods, vk=vk, label=label, passive=True)
     if len(key) == 1 and key.isalnum():
         vk = ord(key.upper())
     elif key in VK_NAMES:
@@ -94,6 +110,18 @@ def parse_spec(spec: str) -> HotkeySpec:
         raise HotkeyError(f"不认识的按键：{key}")
     label = "+".join([p for p in parts if p in MOD_NAMES] + [key.upper()])
     return HotkeySpec(mods=mods, vk=vk, label=label)
+
+
+VK_TO_NAME = {v: k for k, v in VK_NAMES.items()}
+
+
+def spec_from_key(mods: set[str], key: str) -> str:
+    """由设置页的按键捕获生成热键字符串，例如 {'ctrl','alt'} + 'space'。"""
+    order = ["ctrl", "alt", "shift", "win"]
+    parts = [m for m in order if m in mods]
+    if key:
+        parts.append(key.lower())
+    return "+".join(parts)
 
 
 class HotkeyListener:
@@ -154,6 +182,9 @@ class HotkeyListener:
     # -- 线程体 --------------------------------------------------------
     def _run(self) -> None:
         self._thread_id = ctypes.windll.kernel32.GetCurrentThreadId()
+        if self.spec.passive:
+            self._run_passive()
+            return
         ok = user32.RegisterHotKey(None, self._id,
                                    self.spec.mods | MOD_NOREPEAT, self.spec.vk)
         if not ok:
@@ -176,6 +207,28 @@ class HotkeyListener:
                 user32.UnregisterHotKey(None, self._id)
             except Exception:
                 pass
+            self._registered = False
+
+    def _run_passive(self) -> None:
+        """只按修饰键（如 shift）时用：轮询检测按下/松开，不抢占系统热键。"""
+        self._registered = True
+        keys = self.spec.mod_keys
+        was_down = False
+        try:
+            while not self._stop.is_set():
+                down = all(bool(user32.GetAsyncKeyState(k) & 0x8000) for k in keys)
+                if down and not was_down:
+                    self._press_ts = time.perf_counter()
+                    self._safe(self.on_press)
+                elif not down and was_down:
+                    held = (time.perf_counter() - (self._press_ts or
+                                                   time.perf_counter())) * 1000
+                    self._press_ts = None
+                    if held >= self.min_hold_ms:
+                        self._safe(self.on_release)
+                was_down = down
+                time.sleep(self.poll_ms / 1000.0)
+        finally:
             self._registered = False
 
     def _handle_press(self) -> None:

@@ -189,6 +189,10 @@ class MainWindow(QWidget):
             row.addWidget(b)
         root.addLayout(row)
 
+    def set_hotkey_label(self, label: str) -> None:
+        if hasattr(self, "hint"):
+            self.hint.setText(f"也可以按住 {label} 说话")
+
     def set_warmup_status(self, text: str) -> None:
         self.warm_hint.setText(text)
 

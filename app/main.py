@@ -152,6 +152,11 @@ class MainController(QObject):
 
     # -- 热键 ----------------------------------------------------------
     def _start_hotkey(self) -> None:
+        if self.hotkey is not None:
+            try:
+                self.hotkey.stop()
+            except Exception:
+                pass
         spec = str(self.config.get("hotkey.spec", "shift+a"))
         try:
             self.hotkey = HotkeyListener(
@@ -163,10 +168,15 @@ class MainController(QObject):
                 on_error=self.bridge.hotkeyError.emit,
             )
             self.hotkey.start()
-            self.bridge.hotkeyError.connect(self._on_hotkey_error)
+            try:
+                self.bridge.hotkeyError.connect(self._on_hotkey_error)
+            except Exception:
+                pass
             if self.hotkey.registered:
-                self.log.info("热键 %s 已注册", self.hotkey.spec.label)
-                if self.hotkey.spec.mods in (0, 4) and self.hotkey.spec.vk < 0x5B:
+                self.log.info("热键 %s 已注册（%s）", self.hotkey.spec.label,
+                              "轮询" if self.hotkey.spec.passive else "RegisterHotKey")
+                if not self.hotkey.spec.passive and \
+                        self.hotkey.spec.mods in (0, 4) and self.hotkey.spec.vk < 0x5B:
                     self.tray.notify(
                         "热键提示",
                         f"当前热键 {self.hotkey.spec.label} 会全局拦截该按键；"
@@ -175,6 +185,24 @@ class MainController(QObject):
                 self._on_hotkey_error("热键注册超时")
         except Exception as exc:  # noqa: BLE001
             self._on_hotkey_error(str(exc))
+
+    def reload_hotkey(self) -> str:
+        """设置页改了热键后立即生效；失败时保留旧配置。"""
+        new_spec = str(self.config.get("hotkey.spec", "shift+a")).strip()
+        old_spec = str(self.config.get("hotkey.spec", "shift+a"))
+        try:
+            from app.core.hotkey import parse_spec
+
+            parse_spec(new_spec)
+        except Exception as exc:  # noqa: BLE001
+            self.config.set("hotkey.spec", old_spec)
+            return f"热键格式不对：{exc}"
+        self._start_hotkey()
+        ok = self.hotkey is not None and self.hotkey.registered
+        if ok and self._main is not None:
+            self._main.set_hotkey_label(self.hotkey.spec.label)
+        return (f"热键已切换为 {self.hotkey.spec.label}" if ok
+                else "热键切换失败，可能被其它程序占用")
 
     def _on_hotkey_error(self, message: str) -> None:
         self.log.error("热键错误：%s", message)
@@ -511,10 +539,10 @@ class MainController(QObject):
 
     def _on_settings_applied(self) -> None:
         self.config.save()
-        self.log.info("设置已保存，热键重新注册")
-        if self.hotkey is not None:
-            self.hotkey.stop()
-        self._start_hotkey()
+        msg = self.reload_hotkey()
+        self.log.info("设置已保存；%s", msg)
+        if self._main is not None:
+            self._main.set_warmup_status(msg)
         if self.pipeline is not None:
             self.pipeline.player.set_device(self.config.audio.get("output_device"))
             self.pipeline.recorder.device = self.config.audio.get("input_device")
