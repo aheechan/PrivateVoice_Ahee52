@@ -57,7 +57,9 @@ class Player:
             except Exception:
                 samplerate = 48000
         self.samplerate = int(samplerate)
-        self.blocksize = max(1, int(samplerate * blocksize_ms / 1000))
+        self.blocksize_ms = max(10, int(blocksize_ms))
+        self.gap_ms = max(0, int(sentence_gap_ms))
+        self.blocksize = max(1, int(samplerate * self.blocksize_ms / 1000))
         self.gap = np.zeros(int(samplerate * sentence_gap_ms / 1000), np.float32)
         self.limiter_dbtp = limiter_dbtp
         self._buf: deque[np.ndarray] = deque()
@@ -78,11 +80,64 @@ class Player:
     def _open(self) -> None:
         if self._stream is not None:
             return
-        self._stream = sd.OutputStream(
-            samplerate=self.samplerate, channels=1, dtype="float32",
-            blocksize=self.blocksize, device=self.device,
-            callback=self._callback, finished_callback=None)
-        self._stream.start()
+        """优先 WASAPI：MME 在欠载时会把上一块重复播出（听起来像"某个字重复"），
+        WASAPI 则是纯静音补齐。失败再退回系统默认。"""
+        candidates: list[dict] = []
+        try:
+            hostapis = sd.query_hostapis()
+            wasapi = next((i for i, h in enumerate(hostapis)
+                           if "WASAPI" in h["name"].upper()), None)
+            if self.device is not None:
+                candidates.append({"device": self.device})
+            else:
+                # 优先"默认输出设备"，但只在它属于 WASAPI 时保留；
+                # 否则先试默认设备（可能是 MME），再试 WASAPI 设备。
+                try:
+                    default_out = sd.default.device[1]
+                except Exception:
+                    default_out = None
+                if default_out is not None and int(default_out) >= 0:
+                    info = sd.query_devices(int(default_out))
+                    if wasapi is None or int(info["hostapi"]) == wasapi:
+                        candidates.append({"device": int(default_out)})
+                if wasapi is not None:
+                    devs = [i for i, d in enumerate(sd.query_devices())
+                            if d["max_output_channels"] > 0 and d["hostapi"] == wasapi]
+                    for d in devs[:4]:
+                        candidates.append({"device": d})
+        except Exception:
+            pass
+        candidates.append({"device": self.device})
+        last: Exception | None = None
+        for cand in candidates:
+            try:
+                sr = self.samplerate
+                try:
+                    info = sd.query_devices(cand["device"] if cand["device"] is not None
+                                            else sd.default.device[1])
+                    sr = int(info["default_samplerate"]) or sr
+                except Exception:
+                    pass
+                stream = sd.OutputStream(
+                    samplerate=sr, channels=1, dtype="float32",
+                    blocksize=max(1, int(sr * self.blocksize_ms / 1000)),
+                    device=cand["device"], callback=self._callback)
+                stream.start()
+            except Exception as exc:  # noqa: BLE001
+                last = exc
+                continue
+            self._stream = stream
+            self.samplerate = sr
+            self.blocksize = max(1, int(sr * self.blocksize_ms / 1000))
+            self.gap = np.zeros(int(sr * self.gap_ms / 1000), np.float32)
+            try:
+                info = sd.query_devices(stream.device)
+                self.hostapi_name = sd.query_hostapis(info["hostapi"])["name"]
+                self.device_name = info["name"]
+            except Exception:
+                pass
+            return
+        raise RuntimeError(f"打不开音频输出设备：{last}")
 
     def _callback(self, outdata, frames, time_info, status):  # noqa: ANN001
         if status:

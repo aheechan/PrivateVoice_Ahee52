@@ -171,8 +171,11 @@ DEFAULT_CONFIG: dict[str, Any] = {
         # 异常延音保护：超长时先用 top_k=15 重试一次，仍超长才截断
         "retry_top_k": 15,
         "retry_temperature": 0.7,
-        "max_sec_per_char": 0.55,
-        "speed": 1.1,
+        "max_sec_per_char": 0.62,
+        "sentence_fade_in_ms": 12.0,
+        "sentence_fade_out_ms": 25.0,
+        "sentence_crossfade_ms": 20.0,
+        "speed": 0.92,
         "sample_steps": 4,
         "chunk_size_seconds": 0.25,
         "enable_cuda_graph": True,

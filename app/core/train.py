@@ -96,19 +96,23 @@ def estimate_vram_need_gb(plan: Any) -> float:
     return 5.0 + 0.9 * float(getattr(plan, "batch", 4))
 
 
-def preflight(plan: Any) -> None:
-    """训练前预检：可用显存 < 需求 × 1.3 直接拒绝。"""
+def preflight(plan: Any) -> str:
+    """训练前预检：只检查 CUDA 可用性，显存不够只提示，不拦截。
+
+    原来按 "需求×1.3" 硬拒，实测训练峰值只比空闲多 2GB，
+    这个估算把用户挡在门外没有意义——真 OOM 时训练器会 batch 减半重试。
+    返回一句提示（空字符串表示无风险）。
+    """
     import torch
     if not torch.cuda.is_available():
         raise TrainingError("CUDA 不可用，无法训练。")
     free, _total = torch.cuda.mem_get_info(0)
     free_gb = free / 1024 ** 3
-    need = estimate_vram_need_gb(plan) * 1.3
+    need = estimate_vram_need_gb(plan)
     if free_gb < need:
-        raise TrainingError(
-            f"可用显存 {free_gb:.1f} GB，本次训练预计需要 {need:.1f} GB。"
-            f"请关闭浏览器、微信、游戏等占用显存的程序后重试。"
-        )
+        return (f"可用显存 {free_gb:.1f} GB，低于经验需求 {need:.1f} GB；"
+                f"仍会开始训练，若 OOM 会自动把 batch 减半重试。")
+    return ""
 
 
 # ---------------------------------------------------------------------------
@@ -493,7 +497,9 @@ class TrainingRunner:
 
     # -- 准备 ----------------------------------------------------------
     def _prepare(self) -> None:
-        preflight(self.plan)
+        warn = preflight(self.plan)
+        if warn:
+            self.emit(TrainEvent(stage="prepare", level="warn", message=warn))
         # 每次重跑都从干净的上游目录开始，避免上次失败的半成品干扰
         stale = self.repo / "logs" / self.exp
         if stale.exists():

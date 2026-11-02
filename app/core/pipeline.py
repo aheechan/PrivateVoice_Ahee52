@@ -604,6 +604,11 @@ class Pipeline:
             reply = clean_for_tts("".join(reply_parts))
             m.reply_len = len(reply)
             m.audio_sec = round((m.t_play_end - (m.t_play_start or m.t_play_end)), 3)
+            if self.player.underruns:
+                logger.warning("本轮播放欠载 %d 次（可能造成重复/断音）",
+                               self.player.underruns)
+                self._emit("info",
+                           text=f"播放欠载 {self.player.underruns} 次（检查音频设备）")
             self.history.add("user", user_text)
             self.history.add("assistant", reply)
             self.metrics.append(m)
@@ -780,8 +785,10 @@ class Pipeline:
                         self._emit("info",
                                    text=f"TTS 仍偏长（{data.size/sr_out:.1f}s），截断到 {cap:.1f}s")
                         data = data[: int(cap * sr_out)]
-                    # 句首句尾各 8ms 淡入淡出：避免直接硬切造成的"咔"声
-                    data = audio_qc.fade(data, sr_out, 8.0)
+                    # 句首淡入、句尾长淡出：避免硬切与句尾残响被当成"底噪"
+                    fi = float(self.config.get("tts.sentence_fade_in_ms", 12.0))
+                    fo = float(self.config.get("tts.sentence_fade_out_ms", 25.0))
+                    data = audio_qc.fade_asym(data, sr_out, fi, fo)
                     offer(data, sr_out)
                 failed = 0
                 self._emit("info", text=f"TTS 完成：{text[:12]}… "

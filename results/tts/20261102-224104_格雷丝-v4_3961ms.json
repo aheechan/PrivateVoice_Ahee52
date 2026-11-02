@@ -1,0 +1,15 @@
+{
+  "time": "20261102-224104",
+  "character": "格雷丝_v4",
+  "user": "今天有点累，晚上想吃点热乎的面条，然后早点睡。",
+  "reply": "嗯，面条最暖胃了，清汤底比红油更适合睡前吃，不刺激还能睡得安稳。你打算煮碗素面还是加点肉末提提味？",
+  "sample_rate": 48000,
+  "audio_sec": 8.28,
+  "sentences": 4,
+  "asr_ms": 0.5,
+  "llm_ttft_ms": 666.4,
+  "tts_first_ms": null,
+  "e2e_ms": 3961.1,
+  "provider": "local-qwen35-9b",
+  "style": "gentle"
+}

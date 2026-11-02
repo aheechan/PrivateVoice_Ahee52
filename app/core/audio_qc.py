@@ -559,6 +559,19 @@ def fade(x: np.ndarray, sr: int, ms: float = 10.0) -> np.ndarray:
     return y
 
 
+def fade_asym(x: np.ndarray, sr: int, in_ms: float = 12.0,
+              out_ms: float = 25.0) -> np.ndarray:
+    """句首短淡入、句尾长淡出（淡出长一点，句尾残响不会被听成底噪）。"""
+    y = x.copy()
+    n_in = min(int(sr * in_ms / 1000.0), y.size // 2)
+    if n_in > 0:
+        y[:n_in] *= np.linspace(0.0, 1.0, n_in, dtype=np.float32)
+    n_out = min(int(sr * out_ms / 1000.0), y.size // 2)
+    if n_out > 0:
+        y[-n_out:] *= np.linspace(1.0, 0.0, n_out, dtype=np.float32)
+    return y
+
+
 __all__ = [
     "Check", "QCResult", "SUPPORTED_EXT",
     "probe", "decode", "to_mono", "resample", "remove_dc", "highpass",

@@ -70,7 +70,7 @@ tts:
   top_k: 5
   top_p: 1.0
   temperature: 0.6
-  speed: 1.1
+  speed: 0.92
   sample_steps: 4
   chunk_size_seconds: 0.25
   enable_cuda_graph: true
@@ -86,6 +86,8 @@ tts:
   max_sec_per_char: 0.55
   retry_top_k: 15
   retry_temperature: 0.7
+  sentence_fade_in_ms: 12.0
+  sentence_fade_out_ms: 25.0
 ui:
   hotkey: ctrl+alt+space
   language: zh
@@ -101,3 +103,5 @@ gpu:
   min_compute_cap:
   - 8
   - 6
+player:
+  blocksize_ms: 50
