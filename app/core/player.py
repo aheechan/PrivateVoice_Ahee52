@@ -44,11 +44,19 @@ class StreamingResampler:
 
 
 class Player:
-    def __init__(self, device: int | None = None, samplerate: int = 48000,
+    def __init__(self, device: int | None = None, samplerate: int | None = None,
                  blocksize_ms: int = 30, sentence_gap_ms: int = 80,
                  limiter_dbtp: float = -1.0):
         self.device = device
-        self.samplerate = samplerate
+        # 用设备自己的默认采样率，避免 Windows 再插一层系统重采样
+        if samplerate is None:
+            try:
+                info = sd.query_devices(device if device is not None
+                                        else sd.default.device[1])
+                samplerate = int(info["default_samplerate"]) or 48000
+            except Exception:
+                samplerate = 48000
+        self.samplerate = int(samplerate)
         self.blocksize = max(1, int(samplerate * blocksize_ms / 1000))
         self.gap = np.zeros(int(samplerate * sentence_gap_ms / 1000), np.float32)
         self.limiter_dbtp = limiter_dbtp
@@ -61,6 +69,7 @@ class Player:
         self.t_play_start: float | None = None
         self.played_samples = 0
         self.underruns = 0
+        self.dump = None          # 调试：把实际送出的音频写成原始 float32
 
     # -- 设备 ----------------------------------------------------------
     def set_device(self, device: int | None) -> None:
@@ -99,15 +108,20 @@ class Player:
         if got > 0 and self.t_play_start is None:
             self.t_play_start = time.perf_counter()
         outdata[:, 0] = chunk
+        if self.dump is not None:
+            try:
+                self.dump.write(chunk.tobytes())
+            except Exception:
+                self.dump = None
 
     # -- 播放控制 ------------------------------------------------------
     def begin_utterance(self) -> None:
-        """一轮回复开始：重置计时，等第一块数据时开流。"""
+        """一轮回复开始：重置计时。输出流延迟到第一块真实数据再打开，
+        避免开头几秒对着空缓冲写静音（也会让首包时间统计失真）。"""
         self.t_play_start = None
         self.played_samples = 0
         self._abort.clear()
         self._resampler.reset()
-        self._open()
 
     def push(self, samples: np.ndarray, sr: int = 24000) -> None:
         if samples is None or len(samples) == 0:
@@ -125,6 +139,7 @@ class Player:
         with self._lock:
             self._buf.append(np.asarray(samples, np.float32))
             self._playing = True
+        self._open()
 
     def push_gap(self) -> None:
         with self._lock:

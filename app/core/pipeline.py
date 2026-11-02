@@ -16,7 +16,7 @@ from typing import Any, Callable, Iterator
 
 import numpy as np
 
-from . import audio_io
+from . import audio_io, audio_qc
 from .asr import ASREngine, to_16k
 from .history import HistoryStore, system_prompt
 from .llm import LLMClient, LLMError
@@ -109,7 +109,6 @@ class Pipeline:
         self.llm = LLMClient(config)
         self.player = Player(
             device=config.audio.get("output_device"),
-            samplerate=48000,
             blocksize_ms=int(config.get("player.blocksize_ms", 30)),
             sentence_gap_ms=int(config.get("player.sentence_gap_ms", 80)),
             limiter_dbtp=float(config.get("player.limiter_dbtp", -1.0)),
@@ -565,6 +564,8 @@ class Pipeline:
             t_start = time.perf_counter()
             chunks = 0
             gen = None
+            buf: list[np.ndarray] = []
+            sr_out = 24000
             try:
                 with self._tts_lock:
                     engine = self._ensure_tts()
@@ -581,7 +582,10 @@ class Pipeline:
                             if self._t_tts == 0.0:
                                 self._t_tts = time.perf_counter()
                             chunks += 1
-                            self.player.push(chunk.samples, chunk.samplerate)
+                            sr_out = int(chunk.samplerate or 24000)
+                            # 整句缓冲后再交给播放器：v3 的合成比实时慢（RTF>1），
+                            # 逐块推会持续欠载，听起来就是"断断续续的颗粒感"。
+                            buf.append(np.asarray(chunk.samples, np.float32))
                     finally:
                         # 关键：中断时显式关掉生成器，让上游 finally 释放
                         # CUDA Graph / KV 状态；不关的话下一句会在推理里卡死。
@@ -593,6 +597,11 @@ class Pipeline:
                             gen = None
                 if self._cancel.is_set():
                     return
+                if buf:
+                    data = np.concatenate(buf)
+                    # 句首句尾各 8ms 淡入淡出：避免直接硬切造成的"咔"声
+                    data = audio_qc.fade(data, sr_out, 8.0)
+                    self.player.push(data, sr_out)
                 self.player.push_gap()
                 failed = 0
                 self._emit("info", text=f"TTS 完成：{text[:12]}… "
