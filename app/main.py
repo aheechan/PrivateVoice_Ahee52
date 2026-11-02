@@ -101,6 +101,7 @@ class MainController(QObject):
         self._llm_settings = None
         self._diagnostics = None
         self.training = False
+        self._models_loaded = True
         self.pipeline: Pipeline | None = None
         self.hotkey: HotkeyListener | None = None
 
@@ -253,6 +254,14 @@ class MainController(QObject):
                 f"全部就绪：语音合成已加载，识别模型 {info.get('asr_total_s', 0)}s 内加载完成")
 
     def _on_warmup_finished(self, info: dict) -> None:
+        if info.get("reload"):
+            self._models_loaded = True
+            if self._main is not None:
+                self._main.set_models_loaded(True)
+                self._main.set_warm(True)
+                self._main.set_warmup_status("模型已重新加载，可以说话了")
+            self.tray.notify("模型已加载", "可以继续说话了。", 3000)
+            return
         ok = bool(info) and "tts_error" not in info and not info.get("error")
         if ok:
             self.tray.notify("语音已就绪",
@@ -330,6 +339,7 @@ class MainController(QObject):
             self._main.text_submitted.connect(self.submit_text)
             self._main.style_changed.connect(self.set_style)
             self._main.request_clean.connect(self.clean_cache)
+            self._main.request_toggle_models.connect(self.toggle_models)
             self._main.talk_pressed.connect(self._on_press)
             self._main.talk_released.connect(self._on_release)
             self.bridge.stateChanged.connect(self._main.set_state)
@@ -368,6 +378,49 @@ class MainController(QObject):
         if self.pipeline is not None:
             self.pipeline.set_style(style_id)
         self.log.info("情绪档位切换：%s", style_id)
+
+    def toggle_models(self) -> None:
+        """在主界面一键释放 / 重新加载模型，给训练腾显存。"""
+        import threading
+
+        from PySide6.QtWidgets import QMessageBox
+
+        pipe = self._ensure_pipeline()
+        if pipe is None:
+            return
+        if self._models_loaded:
+            if QMessageBox.question(
+                    self, "释放模型",
+                    "将卸载 ASR 与 TTS，释放它们占用的显存（约 3GB）。\n"
+                    "本地 LLM 是独立进程，需要用它的启动脚本自行停止。\n\n"
+                    "释放后不能马上说话，需要再点一次「加载模型」。继续？"
+            ) != QMessageBox.Yes:
+                return
+            info = pipe.release_models()
+            self._models_loaded = False
+            if self._main is not None:
+                self._main.set_models_loaded(False)
+                self._main.set_warm(False)
+                self._main.set_warmup_status(
+                    f"模型已释放，当前可用显存约 {info.get('vram_free_gb', '?')} GB")
+            self.tray.notify("模型已释放", "显存已让出；训练完再点「加载模型」。", 4000)
+            return
+
+        self._models_loaded = True
+        if self._main is not None:
+            self._main.set_models_loaded(True)
+            self._main.set_warm(False)
+            self._main.set_warmup_status("正在重新加载模型（约 20 秒）…")
+
+        def work() -> None:
+            try:
+                pipe.load_models()
+                self.bridge.warmupFinished.emit({"reload": True})
+            except Exception as exc:  # noqa: BLE001
+                self.log.warning("重新加载模型失败：%s", exc)
+                self.bridge.error.emit(f"重新加载模型失败：{exc}")
+
+        threading.Thread(target=work, daemon=True).start()
 
     def clean_cache(self) -> None:
         """清理日志 / 训练中间产物 / 诊断音频（不动角色与模型）。"""
@@ -621,7 +674,14 @@ def main() -> int:
             code = wiz.exec()
             log.info("首启向导返回 %s", code)
             if code != QDialog.DialogCode.Accepted:
-                log.info("首启向导被取消，继续在托盘运行")
+                # 用户点「退出」就是不想用：直接退出，不要留下托盘和主窗口
+                log.info("首启向导被取消，退出程序")
+                try:
+                    controller.shutdown()
+                except Exception:
+                    pass
+                app.quit()
+                return 0
             controller.refresh_characters()
         except Exception as exc:  # noqa: BLE001
             log.warning("首启向导失败（不阻塞启动）：%s", exc, exc_info=True)

@@ -104,9 +104,13 @@ class FirstRunWizard(QDialog):
     def _check_models(self) -> None:
         base = Path(self.model_dir.text().strip())
         pm = base / "GPT_SoVITS" / "pretrained_models"
+        # v2 版内置 GPT-SoVITS v4：底模与 48k 声码器都在 gsv-v4-pretrained 下，
+        # 不再需要 s2Gv3.pth（v3 已从包里移除）。
         need = {
-            "s1v3.ckpt": pm / "s1v3.ckpt",
-            "s2Gv3.pth": pm / "s2Gv3.pth",
+            "s1v3.ckpt（GPT 主干）": pm / "s1v3.ckpt",
+            "s2Gv4.pth（v4 底模）": pm / "gsv-v4-pretrained" / "s2Gv4.pth",
+            "vocoder.pth（48k 声码器）": pm / "gsv-v4-pretrained" / "vocoder.pth",
+            "fast_langdetect": pm / "fast_langdetect" / "lid.176.bin",
             "chinese-hubert-base": pm / "chinese-hubert-base",
             "chinese-roberta-wwm-ext-large": pm / "chinese-roberta-wwm-ext-large",
             "G2PWModel": base / "GPT_SoVITS" / "text" / "G2PWModel",
@@ -119,7 +123,7 @@ class FirstRunWizard(QDialog):
             self.model_status.setStyleSheet("color:#c0392b;")
         else:
             self.model_ok = True
-            self.model_status.setText("模型齐全（v3 权重 + 文本前端）。")
+            self.model_status.setText("模型齐全（v4 底模 + 声码器 + 文本前端）。")
             self.model_status.setStyleSheet("color:#2d7d46;")
 
     def _test_llm(self) -> None:

@@ -65,9 +65,9 @@ label:
   dup_similarity: 0.9
 tts:
   how_to_cut: 按标点符号切
-  top_k: 5
-  top_p: 1.0
-  temperature: 0.6
+  top_k: 15
+  top_p: 0.95
+  temperature: 0.7
   speed: 1.1
   sample_steps: 4
   chunk_size_seconds: 0.25
@@ -81,6 +81,7 @@ tts:
   - 今天有点累，不过见到你就好多了。
   - 你还记得我们上次说的那件事吗？
   - 别急着走，再陪我坐一会儿吧。
+  max_sec_per_char: 0.55
 ui:
   hotkey: ctrl+alt+space
   language: zh

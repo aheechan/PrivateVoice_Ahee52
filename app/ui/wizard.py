@@ -668,8 +668,10 @@ class TrainPage(QWizardPage):
         self._thread = None
         QMessageBox.information(
             self, "训练完成",
-            "训练完成，模型已保存。\n\n点「下一步」进入试听，听三句固定文本；"
-            "不满意可以返回上一步换档位重训。")
+            "训练完成，模型已保存。\n\n"
+            "点「下一步」进入试听，听三句固定文本；不满意可以返回上一步换档位重训。\n\n"
+            "提示：如果训练前在主界面点过「释放模型」腾显存，"
+            "训练结束后请重启软件，或点「加载模型」重新加载。")
 
     def _on_failed(self, msg: str) -> None:
         self.status.setText(f"训练失败：{msg}")

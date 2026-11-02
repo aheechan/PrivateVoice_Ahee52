@@ -5,10 +5,13 @@
 """
 from __future__ import annotations
 
+import json
+import logging
 import queue
 import re
 import threading
 import time
+from pathlib import Path
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -17,6 +20,8 @@ from typing import Any, Callable, Iterator
 import numpy as np
 
 from . import audio_io, audio_qc
+
+logger = logging.getLogger(__name__)
 from .asr import ASREngine, to_16k
 from .history import HistoryStore, system_prompt
 from .llm import LLMClient, LLMError
@@ -139,6 +144,7 @@ class Pipeline:
         )
         self.recorder = audio_io.Recorder(device=config.audio.get("input_device"))
         self._tts: TTSEngine | None = None
+        self._turn_audio: list[tuple[np.ndarray, int]] = []
         self.style_id = str(config.get("llm.default_style", "gentle"))
         self._tts_key: tuple[str, str] = ("", "")
 
@@ -210,6 +216,43 @@ class Pipeline:
             else:
                 self._emit("info", text="TTS 引擎复用（已加载）")
             return self._tts
+
+    def release_models(self) -> dict[str, Any]:
+        """卸载 ASR + TTS，把显存让给训练。"""
+        out: dict[str, Any] = {}
+        with self._tts_lock:
+            if self._tts is not None:
+                try:
+                    self._tts.unload()
+                except Exception as exc:  # noqa: BLE001
+                    out["tts_error"] = str(exc)
+                self._tts = None
+        self._tts_key = ("", "")
+        self._tts_ready.clear()
+        self._asr_ready.clear()
+        try:
+            self.asr.unload()
+        except Exception as exc:  # noqa: BLE001
+            out["asr_error"] = str(exc)
+        try:
+            import gc
+
+            import torch
+            gc.collect()
+            torch.cuda.empty_cache()
+            out["vram_free_gb"] = round(
+                torch.cuda.mem_get_info()[0] / 1024 ** 3, 2)
+        except Exception:
+            pass
+        self._emit("info", text=f"已释放模型：{out}")
+        return out
+
+    def load_models(self) -> dict[str, Any]:
+        """重新加载 ASR + TTS（会在后台跑，期间轮次会等）。"""
+        tts = self.warm_tts()
+        asr = self.warm_asr()
+        self._emit("info", text="模型已重新加载")
+        return {**tts, **asr}
 
     def warm_tts(self) -> dict[str, Any]:
         """第一段预热：只加载 TTS（约 18s），完成后就可以放开输入。
@@ -422,6 +465,7 @@ class Pipeline:
         ch = self.character
         m = TurnMetrics(char_id=ch.id if ch else "",
                         t_press=self._t_press, t_release=self._t_release)
+        self._turn_audio = []
         cancel = self._cancel
         try:
             # ---- ASR ----
@@ -544,6 +588,7 @@ class Pipeline:
             self.history.add("user", user_text)
             self.history.add("assistant", reply)
             self.metrics.append(m)
+            self._save_turn_audio(m, user_text, reply)
             self._emit("turn_done", text=reply)
             self._set_state(State.IDLE)
         except Exception as exc:  # noqa: BLE001
@@ -598,6 +643,7 @@ class Pipeline:
             for data, sr in held:
                 self.player.push(data, sr)
                 self.player.push_gap()
+                self._turn_audio.append((data, sr))
             held.clear()
             play_started = True
 
@@ -665,6 +711,14 @@ class Pipeline:
                     data = np.concatenate(buf)
                     # 去掉模型自带的 ~300ms 首尾静音，否则句间会叠出明显空洞
                     data = _trim_edges(data, sr_out)
+                    # 异常延音保护：v4 偶发把语气词拖长/重复（实测 11s），
+                    # 按字数估个上限截断，免得一句话卡住半天。
+                    per_char = float(self.config.get("tts.max_sec_per_char", 0.55))
+                    cap = per_char * max(4, len(text)) + 1.0
+                    if data.size / sr_out > cap:
+                        self._emit("info",
+                                   text=f"TTS 输出异常偏长（{data.size/sr_out:.1f}s > {cap:.1f}s），已截断")
+                        data = data[: int(cap * sr_out)]
                     # 句首句尾各 8ms 淡入淡出：避免直接硬切造成的"咔"声
                     data = audio_qc.fade(data, sr_out, 8.0)
                     offer(data, sr_out)
@@ -676,6 +730,60 @@ class Pipeline:
                 self._emit("error", text=f"TTS 失败（{failed}）：{exc}")
                 if failed >= 2:
                     self._reset_tts()
+
+    def _save_turn_audio(self, m: Any, user_text: str, reply: str) -> None:
+        """把这一轮实际播放的音频存下来，方便事后用播放器反复检查音质。"""
+        if not bool(self.config.get("audio.save_tts", True)):
+            self._turn_audio = []
+            return
+        parts = list(self._turn_audio)
+        self._turn_audio = []
+        if not parts:
+            return
+        try:
+            sr = parts[0][1]
+            gap = np.zeros(int(sr * 0.08), np.float32)
+            chunks: list[np.ndarray] = []
+            for i, (data, _sr) in enumerate(parts):
+                if i:
+                    chunks.append(gap)
+                chunks.append(data)
+            audio = np.concatenate(chunks) if chunks else np.zeros(0, np.float32)
+            root = Path(self.config.path_of("logs")).parent
+            out_dir = root / str(self.config.get("audio.save_tts_dir", "results/tts"))
+            out_dir.mkdir(parents=True, exist_ok=True)
+            ts = time.strftime("%Y%m%d-%H%M%S")
+            cid = (self.character.id if self.character else "na")[:6]
+            base = out_dir / f"{ts}_{cid}_{int(m.e2e_ms)}ms"
+            audio_qc.save_wav(base.with_suffix(".wav"), audio, sr, subtype="PCM_16")
+            meta = {
+                "time": ts, "character": getattr(self.character, "name", ""),
+                "user": user_text, "reply": reply,
+                "sample_rate": sr, "audio_sec": round(audio.size / sr, 3),
+                "sentences": len(parts),
+                "asr_ms": getattr(m, "asr_ms", None),
+                "llm_ttft_ms": getattr(m, "llm_ttft_ms", None),
+                "tts_first_ms": getattr(m, "tts_first_ms", None),
+                "e2e_ms": getattr(m, "e2e_ms", None),
+                "provider": getattr(m, "provider", None), "style": self.style_id,
+            }
+            base.with_suffix(".json").write_text(
+                json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+            self._rotate_tts(out_dir)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("保存本轮音频失败：%s", exc)
+
+    def _rotate_tts(self, out_dir: Path) -> None:
+        keep = int(self.config.get("audio.keep_tts", 200))
+        if keep <= 0:
+            return
+        wavs = sorted(out_dir.glob("*.wav"), key=lambda p: p.stat().st_mtime)
+        for old in wavs[:-keep]:
+            try:
+                old.unlink(missing_ok=True)
+                old.with_suffix(".json").unlink(missing_ok=True)
+            except OSError:
+                pass
 
     def _finish_tts(self) -> None:
         """只发“没有更多句子”的信号，不阻塞——合成还要继续跑，播放同时进行。"""

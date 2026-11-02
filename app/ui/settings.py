@@ -1,10 +1,12 @@
 """设置页：档位、音频设备、热键（本阶段只保存）、日志级别、开机自启。"""
 from __future__ import annotations
 
+from pathlib import Path
+
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFormLayout, QGroupBox,
-    QHBoxLayout, QLabel, QLineEdit, QVBoxLayout,
+    QHBoxLayout, QLabel, QLineEdit, QPushButton, QVBoxLayout,
 )
 
 from app.config import PROFILE_MATRIX, Config
@@ -55,7 +57,20 @@ class SettingsDialog(QDialog):
                 pass
         form2.addRow("录音设备", self.in_box)
         form2.addRow("播放设备", self.out_box)
+        self.save_tts = QCheckBox("把每轮合成的音频存到 results\\tts（便于检查音质）")
+        form2.addRow("", self.save_tts)
+        self.btn_open_tts = QPushButton("打开音频目录")
+        self.btn_open_tts.clicked.connect(self._open_tts_dir)
+        form2.addRow("", self.btn_open_tts)
         root.addWidget(gb_audio)
+
+    def _open_tts_dir(self) -> None:
+        from PySide6.QtCore import QUrl
+        from PySide6.QtGui import QDesktopServices
+
+        path = Path(self.config.path_of("logs")).parent / "results" / "tts"
+        path.mkdir(parents=True, exist_ok=True)
+        QDesktopServices.openUrl(QUrl.fromLocalFile(str(path)))
 
         gb_ui = QGroupBox("交互与日志")
         form3 = QFormLayout(gb_ui)
@@ -94,6 +109,7 @@ class SettingsDialog(QDialog):
             val = cfg.audio.get(key)
             i = box.findData(val)
             box.setCurrentIndex(max(0, i))
+        self.save_tts.setChecked(bool(cfg.get("audio.save_tts", True)))
 
     def _save(self) -> None:
         cfg = self.config
@@ -103,6 +119,7 @@ class SettingsDialog(QDialog):
         cfg.set("ui.autostart", self.autostart.isChecked())
         cfg.set("audio.input_device", self.in_box.currentData())
         cfg.set("audio.output_device", self.out_box.currentData())
+        cfg.set("audio.save_tts", self.save_tts.isChecked())
         try:
             from app.main import install_autostart
             install_autostart(self.autostart.isChecked())

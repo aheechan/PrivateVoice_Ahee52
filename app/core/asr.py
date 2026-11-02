@@ -69,6 +69,20 @@ class ASREngine:
             disable_update=True,
         )
 
+    def unload(self) -> None:
+        """释放显存（给训练腾地方）。下次调用会自动重新加载。"""
+        with self._lock:
+            self._model = None
+            self.warmed = False
+        try:
+            import gc
+
+            import torch
+            gc.collect()
+            torch.cuda.empty_cache()
+        except Exception:
+            pass
+
     def warmup(self) -> float:
         """跑一段 1s 静音，把 CUDA kernel 预热掉。"""
         t0 = time.perf_counter()

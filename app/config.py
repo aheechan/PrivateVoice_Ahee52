@@ -103,7 +103,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "save_recent": 3,          # 每 epoch 保存，只留最近 N 个
         "oom_retries": 3,          # CUDA OOM 时 batch 减半重跑次数上限
         "fp16": True,
-        "s2_version": "v3",        # v3 | v4（v4 需要 s2Gv4.pth + vocoder.pth）
+        "s2_version": "v4",        # v3 | v4（本包只带 v4；v3 需额外底模）
         "cuda_alloc_conf": "expandable_segments:True",
         "pretrained_s1": "s1v3.ckpt",
         "pretrained_s2": "s2Gv3.pth",
@@ -111,6 +111,9 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "audio": {
         "input_device": None,
         "output_device": None,
+        "save_tts": True,
+        "save_tts_dir": "results/tts",
+        "keep_tts": 200,
         "target_sr": 48000,
         "clip_sr": 24000,
         "target_lufs": -23.0,
@@ -160,9 +163,12 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "tts": {
         # Stage 1 实测协议，试听与复测必须一致（见 docs/stage1-baseline.md）
         "how_to_cut": "按标点符号切",
-        "top_k": 5,
-        "top_p": 1.0,
-        "temperature": 0.6,
+        # top_k=5 太贪婪：v4 遇到「嗯 / 哦 / 唔」这类语气词会把元音拖长甚至重复
+        # （实测「唔，那就早点睡。」放大到 11.5s，top_k=15 时 2.2s）
+        "top_k": 15,
+        "top_p": 0.95,
+        "temperature": 0.7,
+        "max_sec_per_char": 0.55,   # 超过这个时长就当作异常延音，截断保护
         "speed": 1.1,
         "sample_steps": 4,
         "chunk_size_seconds": 0.25,
@@ -336,13 +342,29 @@ class Config:
         """
         gpt = Path(str(self.get("paths.gpt_sovits", "")))
         if gpt.exists():
+            self._heal_training(gpt)
             return
         for key, value in DEFAULT_CONFIG["paths"].items():
             self.set(f"paths.{key}", value)
+        self._heal_training(Path(str(DEFAULT_CONFIG["paths"]["gpt_sovits"])))
         try:
             self.save()
         except OSError:
             pass
+
+    def _heal_training(self, gpt_root: Path) -> None:
+        """配置写着 v3、但包里只有 v4 底模时自动切 v4，避免训练直接失败。"""
+        pm = gpt_root / "GPT_SoVITS" / "pretrained_models"
+        has_v3 = (pm / "s2Gv3.pth").exists()
+        has_v4 = (pm / "gsv-v4-pretrained" / "s2Gv4.pth").exists() or \
+                 (pm / "s2Gv4.pth").exists()
+        if has_v4 and not has_v3 and str(self.get("training.s2_version", "v4")) != "v4":
+            self.set("training.s2_version", "v4")
+            self.set("training.pretrained_s2", "s2Gv4.pth")
+            try:
+                self.save()
+            except OSError:
+                pass
 
     def save(self, path: Path | None = None) -> Path:
         path = Path(path) if path else self.path

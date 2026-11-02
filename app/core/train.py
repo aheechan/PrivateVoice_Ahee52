@@ -186,7 +186,7 @@ def _write_yaml(path: Path, data: dict[str, Any]) -> Path:
 
 def make_s2_config(work: Path, exp: str, plan: Any, project_root: Path,
                    lora_rank: int = 32, grad_ckpt: bool = False,
-                   version: str = "v3") -> Path:
+                   version: str = "v4") -> Path:
     import copy
     cfg = copy.deepcopy(S2_TEMPLATE)
     tr = cfg["train"]
@@ -195,10 +195,18 @@ def make_s2_config(work: Path, exp: str, plan: Any, project_root: Path,
     tr["grad_ckpt"] = bool(grad_ckpt)
     tr["lora_rank"] = int(lora_rank)
     tr["learning_rate"] = round(0.0001 * float(plan.lr_scale), 8)
-    pretrained = "s2Gv4.pth" if version == "v4" else "s2Gv3.pth"
-    tr["pretrained_s2G"] = str(
-        project_root / REPO_DIRNAME / "GPT_SoVITS" / "pretrained_models" / pretrained)
-    if not Path(tr["pretrained_s2G"]).exists():
+    # v4 权重按上游约定放在 gsv-v4-pretrained 子目录，也兼容平铺
+    base_dir = project_root / REPO_DIRNAME / "GPT_SoVITS" / "pretrained_models"
+    if version == "v4":
+        candidates = [base_dir / "gsv-v4-pretrained" / "s2Gv4.pth",
+                      base_dir / "s2Gv4.pth"]
+        pretrained = "s2Gv4.pth"
+    else:
+        candidates = [base_dir / "s2Gv3.pth"]
+        pretrained = "s2Gv3.pth"
+    found = next((p for p in candidates if p.exists()), candidates[0])
+    tr["pretrained_s2G"] = str(found)
+    if not found.exists():
         raise TrainingError(
             f"缺少 {pretrained}，请先下载到 GPT_SoVITS/pretrained_models/"
             f"（v4 还需要同目录的 vocoder.pth）")
@@ -294,7 +302,7 @@ class TrainingRunner:
         self.exp = f"vlab_{character_id.split('-')[0]}"
         self.work = Path(config.path_of("datasets")) / character_id / "work"
         self.log_path = Path(config.path_of("logs")) / f"train_{character_id}.log"
-        self.s2_version = str(config.get("training.s2_version", "v3"))
+        self.s2_version = str(config.get("training.s2_version", "v4"))
         self.result: dict[str, Any] = {}
 
     # -- 事件 ----------------------------------------------------------
@@ -340,7 +348,10 @@ class TrainingRunner:
         parts: list[str] = []
         if shim:
             # s1（Lightning/DDP）在本机需要运行时垫片，见 tools/s1shim/sitecustomize.py
-            parts.append(str(self.project_root / "tools" / "s1shim"))
+            shim_dir = str(self.project_root / "tools" / "s1shim")
+            parts.append(shim_dir)
+            # 打包版有 ._pth 会忽略 PYTHONPATH，垫片目录要靠 run_upstream 显式加载
+            env["VOICELAB_SHIM"] = shim_dir
         parts += [str(self.repo), str(self.repo / "GPT_SoVITS")]
         env["PYTHONPATH"] = ";".join(parts)
         env["PYTHONUTF8"] = "1"
@@ -370,10 +381,32 @@ class TrainingRunner:
         return self._env(base)
 
     # -- 子进程执行 ----------------------------------------------------
+    def _wrap_upstream(self, cmd: list[str]) -> list[str]:
+        """把 `python -s 上游脚本.py ...` 改写成经 run_upstream.py 启动。
+
+        嵌入式 Python 有 ._pth 时 PYTHONPATH 会被忽略，上游脚本里的
+        `from text.cleaner import ...` 会 ModuleNotFoundError；垫片在运行时补 sys.path。
+        """
+        try:
+            if len(cmd) >= 3 and cmd[0] == PY and cmd[1] == "-s":
+                script = cmd[2]
+                path = Path(script)
+                if not path.is_absolute():
+                    path = self.repo / script
+                if path.suffix == ".py" and path.exists():
+                    shim = self.project_root / "tools" / "run_upstream.py"
+                    if shim.exists():
+                        return [PY, "-s", str(shim), str(self.repo),
+                                str(path), *cmd[3:]]
+        except Exception:  # noqa: BLE001
+            pass
+        return cmd
+
     def _run(self, cmd: list[str], stage: str, env: dict[str, str],
              total_epochs: int = 0, quiet: bool = False) -> int:
         if self.cancelled:
             raise TrainingCancelled("训练已取消")
+        cmd = self._wrap_upstream(cmd)
         self.log_path.parent.mkdir(parents=True, exist_ok=True)
         log = self.log_path.open("a", encoding="utf-8", errors="replace")
         log.write(f"\n\n===== {time.strftime('%Y-%m-%d %H:%M:%S')} [{stage}] "
@@ -518,9 +551,16 @@ class TrainingRunner:
         self._expect(code, "HuBERT 特征提取")
 
     def _prep_semantic(self) -> None:
+        # v4 用 s2Gv4 做语义量化器（脚本按文件大小判断走 v3 分支，两者结构兼容）
+        base_dir = self.repo / "GPT_SoVITS" / "pretrained_models"
+        if self.s2_version == "v4":
+            candidates = [base_dir / "gsv-v4-pretrained" / "s2Gv4.pth",
+                          base_dir / "s2Gv4.pth"]
+        else:
+            candidates = [base_dir / "s2Gv3.pth"]
+        base = next((p for p in candidates if p.exists()), candidates[0])
         env = self._prep_env({
-            "pretrained_s2G": str(self.repo / "GPT_SoVITS" / "pretrained_models"
-                                  / "s2Gv3.pth"),
+            "pretrained_s2G": str(base),
             "s2config_path": str(self.repo / "GPT_SoVITS" / "configs" / "s2.json"),
         })
         self.emit(TrainEvent(stage="prep_semantic", message="提取语义 token…"))
