@@ -774,6 +774,12 @@ class PreviewPage(QWizardPage):
         self._thread.failed.connect(lambda m: self.status.setText(f"合成失败：{m}"))
         self._thread.start()
 
+    def _on_failed(self, msg: str) -> None:
+        self.status.setText(f"试听合成失败：{msg}")
+        QMessageBox.warning(self, "试听失败",
+                            f"合成没成功，音频不会播放。\n\n原因：{msg}\n\n"
+                            "把 logs\\app.log 和这个提示一起发给开发者。")
+
     def _on_done(self, files: list[Path]) -> None:
         self._files = list(files)
         texts = self.wiz.config.data.get("tts", {}).get("preview_texts", [])

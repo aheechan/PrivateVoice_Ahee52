@@ -374,7 +374,34 @@ class MainController(QObject):
             "点「确定」后稍等几秒，窗口会自己回来。")
         self.log.info("训练结束，准备重启软件（ok=%s）", ok)
         self._training_done = True
+        # 兜底：如果 8 秒后本进程还活着（重启失败/被杀），就地重新加载模型，
+        # 保证新角色能出声，而不是留在"已卸载"状态。
+        from PySide6.QtCore import QTimer
+
+        QTimer.singleShot(8000, self._fallback_reload_after_training)
         restart_app()
+
+    def _fallback_reload_after_training(self) -> None:
+        import threading
+
+        if self._models_loaded:
+            return
+        pipe = self.pipeline
+        if pipe is None:
+            return
+        self.log.warning("重启未生效，就地重新加载模型")
+
+        def work() -> None:
+            try:
+                pipe.load_models()
+                self._models_loaded = True
+                self.bridge.warmupFinished.emit({"reload": True})
+                self.tray.notify("模型已重新加载", "可以试听/对话了。", 4000)
+            except Exception as exc:  # noqa: BLE001
+                self.log.error("就地重载失败：%s", exc)
+                self.tray.notify("模型加载失败", f"{exc}", 8000)
+
+        threading.Thread(target=work, daemon=True).start()
 
     def _on_wizard_done(self, result: int) -> None:
         if not getattr(self, "_training_done", False) and not self._models_loaded:
