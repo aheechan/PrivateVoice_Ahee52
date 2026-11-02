@@ -282,6 +282,7 @@ class MainController(QObject):
             self._main.request_diagnostics.connect(self.open_diagnostics)
             self._main.request_new_character.connect(self.open_wizard)
             self._main.request_warmup.connect(self.start_warmup)
+            self._main.text_submitted.connect(self.submit_text)
             self._main.talk_pressed.connect(self._on_press)
             self._main.talk_released.connect(self._on_release)
             self.bridge.stateChanged.connect(self._main.set_state)
@@ -293,6 +294,22 @@ class MainController(QObject):
         self._main.raise_()
         self._main.activateWindow()
         self.log.info("主界面已打开：%s", self._main.windowTitle())
+
+    def submit_text(self, text: str) -> None:
+        """主界面文字输入：跳过录音与 ASR，直接走 LLM→TTS→播放。"""
+        text = (text or "").strip()
+        if not text:
+            return
+        if self.training:
+            self.tray.notify("训练进行中", "等训练结束再说话")
+            return
+        pipe = self._ensure_pipeline()
+        if pipe is None:
+            self.tray.notify("还没有角色", "先新建一个角色")
+            return
+        if self._main is not None:
+            self._main.set_state("thinking", "文字输入")
+        pipe.submit_text(text)
 
     def start_warmup(self) -> None:
         """手动预热：把 ASR / TTS 提前加载进显存。"""

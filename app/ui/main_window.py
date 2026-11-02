@@ -10,7 +10,8 @@ from pathlib import Path
 from PySide6.QtCore import QRectF, QSize, Qt, Signal
 from PySide6.QtGui import QColor, QFont, QPainter, QPixmap
 from PySide6.QtWidgets import (
-    QHBoxLayout, QLabel, QPushButton, QSizePolicy, QTextEdit, QVBoxLayout, QWidget,
+    QHBoxLayout, QLabel, QLineEdit, QPushButton, QSizePolicy, QTextEdit,
+    QVBoxLayout, QWidget,
 )
 
 STATUS = {
@@ -66,6 +67,7 @@ class MainWindow(QWidget):
     request_llm = Signal()
     request_new_character = Signal()
     request_warmup = Signal()
+    text_submitted = Signal(str)
     talk_pressed = Signal()
     talk_released = Signal()
 
@@ -110,6 +112,22 @@ class MainWindow(QWidget):
         self.warm_hint.setStyleSheet("color:#888;font-size:12px;")
         self.warm_hint.setWordWrap(True)
         root.addWidget(self.warm_hint)
+
+        # 文字输入：没有麦克风时也能完整跑通链路
+        row_in = QHBoxLayout()
+        self.input = QLineEdit()
+        self.input.setPlaceholderText("也可以打字：输入后回车（没麦克风时用这个）")
+        self.input.setMinimumHeight(36)
+        self.input.setStyleSheet(
+            "QLineEdit{background:#121722;border:1px solid #2a3444;border-radius:9px;"
+            "color:#e6edf7;padding:6px 10px;font-size:13px;}")
+        self.input.returnPressed.connect(self._submit_text)
+        self.btn_send = QPushButton("发送")
+        self.btn_send.setMinimumHeight(36)
+        self.btn_send.clicked.connect(self._submit_text)
+        row_in.addWidget(self.input, 1)
+        row_in.addWidget(self.btn_send)
+        root.addLayout(row_in)
 
         self.talk = QPushButton("按住说话")
         self.talk.setMinimumHeight(96)
@@ -162,6 +180,8 @@ class MainWindow(QWidget):
             self.sub.setText("还没有角色，先新建一个")
             self.avatar.setPixmap(_avatar_pixmap(None))
             self.talk.setEnabled(False)
+            self.input.setEnabled(False)
+            self.btn_send.setEnabled(False)
             self.transcript.clear()
             return
         self.name.setText(character.name)
@@ -172,6 +192,8 @@ class MainWindow(QWidget):
         av = self.store.avatar_path(character.id) if character else None
         self.avatar.setPixmap(_avatar_pixmap(av, initial=character.name))
         self.talk.setEnabled(character.status == "ready")
+        self.input.setEnabled(character.status == "ready")
+        self.btn_send.setEnabled(character.status == "ready")
         self._load_history(character)
 
     def _load_history(self, character) -> None:
@@ -224,6 +246,13 @@ class MainWindow(QWidget):
 
     def _on_release(self) -> None:
         self.talk_released.emit()
+
+    def _submit_text(self) -> None:
+        text = self.input.text().strip()
+        if not text:
+            return
+        self.input.clear()
+        self.text_submitted.emit(text)
 
     def closeEvent(self, event):  # noqa: N802
         # 关掉只是收进托盘
