@@ -51,7 +51,7 @@ def main() -> int:
 
     p.setPen(QColor("#e6edf7"))
     p.setFont(QFont("Microsoft YaHei", 15, QFont.Bold))
-    p.drawText(28, 44, "VoiceLab · 系统托盘")
+    p.drawText(28, 44, "情感陪伴器_v1 · 系统托盘")
     p.setPen(QColor("#7d8aa3"))
     p.setFont(QFont("Microsoft YaHei", 9))
     p.drawText(28, 68, "左键点图标 = 打开角色管理；右键 = 下面这个菜单")

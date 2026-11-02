@@ -220,3 +220,48 @@ esults/character_ttfp.json）。
    Failed to load cublasLt64_13.dll，自动回退 CPU，不影响结果。
 3. **PySide6 不含 WebEngine**（显式卸载，规格要求）。
 4. **热键只保存不注册**，对话留到 Stage 3。
+
+---
+
+# Stage 4：打包
+
+分发包在 dist\情感陪伴器_v1\（9.45 GB / 49,841 文件），安装器在
+dist\installer\（受 Windows 单 exe 4.2GB 限制，分卷为 Setup.exe + .bin）。
+构建脚本是仓库根目录的 installer.iss（Inno Setup 6，Compression=none + 分卷）。
+
+## 分发包结构
+
+`
+情感陪伴器_v1\
+  runtime\        嵌入式 Python 3.12.10 + site-packages（torch/PySide6/funasr/...）
+  app\            应用代码
+  GPT-SoVITS\     v3 代码 + pretrained_models + G2PWModel
+  Aqua-TTS\       aquatts 源码（不依赖 editable 安装）
+  characters\     示例角色（格雷丝、阿岚，路径已相对化）
+  assets\ logs\ results\
+  启动.bat  自检.bat  使用说明.txt
+`
+
+## 打包要点（详见 docs/stage4-report.md）
+
+1. python312._pth **必须含 import site**，否则 setuptools 的 distutils 补丁不生效，
+   funasr 会静默少注册 11 个模型（paraformer-zh 直接不可用）。
+2. 删掉 __editable__.aqua_tts-0.3.0.pth 与同名前缀 finder（写死了 C:\VoiceLab 绝对路径），
+   改由 _pth 加 ..\Aqua-TTS。
+3. 不要把 GPT-SoVITS / GPT_SoVITS 加进 _pth（里面的 config.py、module\、	ext\
+   会污染 sys.path），TTS 引擎加载时按需插入即可。
+4. 角色的 gpt_ckpt / sovits_ckpt 走 CharacterStore._relocate()：路径不存在时回落到
+   <角色目录>\checkpoints\<文件名>，这样整包搬到 5070 Ti 也能用。
+
+## 验证
+
+`powershell
+cd dist\情感陪伴器_v1
+runtime\python.exe tools\selftest.py     # 期望最后一行 SELFTEST PASS
+`
+
+3090 上实测：运行时/CUDA、门禁、依赖、角色权重、ASR→LLM→TTS→播放（e2e 2421ms，
+音频 4.75s）、打断 11ms 全部通过。
+GPU 拒卡逻辑有单测覆盖（	ests/test_gpu_guard.py，含 5070 Ti sm_120 放行）。
+
+> 5070 Ti 未实机验证；包内没有 ASR 模型缓存，换机首次运行需联网下载约 1.1GB。

@@ -22,3 +22,7 @@ Aqua-TTS/
 
 tools/vs/
 
+
+# 打包产物（9.5GB，不进仓库）
+dist/
+

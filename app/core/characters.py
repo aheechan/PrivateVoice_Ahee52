@@ -127,6 +127,7 @@ class CharacterStore:
                 c = Character.from_dict(json.loads(p.read_text(encoding="utf-8")))
             except Exception:
                 continue
+            self._relocate(c)
             if status is None or c.status in status:
                 out.append(c)
         out.sort(key=lambda c: c.last_used or c.created_at, reverse=True)
@@ -136,7 +137,23 @@ class CharacterStore:
         p = self.dir_of(cid) / "profile.json"
         if not p.exists():
             raise KeyError(f"角色不存在: {cid}")
-        return Character.from_dict(json.loads(p.read_text(encoding="utf-8")))
+        c = Character.from_dict(json.loads(p.read_text(encoding="utf-8")))
+        self._relocate(c)
+        return c
+
+    def _relocate(self, c: Character) -> None:
+        """角色目录搬到别的机器后，绝对路径会失效；这里回落到 <id>/checkpoints/<文件名>。"""
+        voice = c.voice or {}
+        for key in ("gpt_ckpt", "sovits_ckpt"):
+            raw = voice.get(key) or ""
+            if raw and Path(raw).exists():
+                continue
+            if not raw:
+                continue
+            cand = self.dir_of(c.id) / "checkpoints" / Path(raw).name
+            if cand.exists():
+                voice[key] = str(cand)
+        c.voice = voice
 
     def name_taken(self, name: str, exclude: str | None = None) -> bool:
         return any(c.name == name.strip() and c.id != exclude for c in self.list())

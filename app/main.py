@@ -434,6 +434,18 @@ def main() -> int:
     if config.ui.get("autostart"):
         install_autostart(True)
 
+    # 首启向导：模型目录 / provider / 热键确认
+    if not config.get("ui.first_run_done", False):
+        try:
+            from app.ui.first_run import FirstRunWizard
+            wiz = FirstRunWizard(config)
+            if wiz.exec() != wiz.Accepted:
+                log.info("首启向导被取消，退出")
+                return 0
+            controller.refresh_characters()
+        except Exception as exc:  # noqa: BLE001
+            log.warning("首启向导失败（不阻塞启动）：%s", exc)
+
     log.info("托盘就绪")
     return app.exec()
 
