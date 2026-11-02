@@ -212,6 +212,9 @@ def limit_peak(x: np.ndarray, sr: int, ceiling_dbfs: float = -1.0,
     ceiling = 10 ** (ceiling_dbfs / 20.0)
     if x.size == 0:
         return x
+    # decode() 返回 (n, 2)，这里统一按一维处理，避免 sliding_window_view 报错
+    if x.ndim > 1:
+        x = x.mean(axis=-1).astype(np.float32)
     la = max(1, int(sr * lookahead_ms / 1000.0))
     absx = np.abs(x)
     # 滑动最大值（前瞻窗口）

@@ -118,6 +118,9 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "target_sr": 48000,
         "clip_sr": 24000,
         "target_lufs": -23.0,
+        "train_lufs": -23.0,        # 训练片段统一响度（自动放大/缩小素材）
+        "train_peak_db": -1.5,
+        "max_gain_db": 30.0,
         "peak_dbtp": -1.0,
         "hp_hz": 60.0,
         "noise_probe_sec": 5.0,

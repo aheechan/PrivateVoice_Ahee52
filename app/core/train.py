@@ -507,8 +507,38 @@ class TrainingRunner:
         self.work.mkdir(parents=True, exist_ok=True)
         wav_dir = self.work / "wav24k"
         wav_dir.mkdir(parents=True, exist_ok=True)
+        # 自动响度对齐：素材整体偏轻/偏响都归一到同一目标，
+        # 否则模型会学到一个"很小声"的音色（试听近乎无声就是这么来的）。
+        from app.core import audio_qc
+
+        target = float(self.config.get("audio.train_lufs", -23.0))
+        peak = float(self.config.get("audio.train_peak_db", -1.5))
+        max_gain = float(self.config.get("audio.max_gain_db", 30.0))
+        gains: list[float] = []
         for wav in sorted((self.dataset_dir / "clips").glob("*.wav")):
-            shutil.copyfile(wav, wav_dir / wav.name)
+            dest = wav_dir / wav.name
+            try:
+                y, sr = audio_qc.decode(str(wav))
+                y = audio_qc.to_mono(y)
+                lufs = audio_qc.integrated_lufs(y, sr)
+                gain_db = max(-max_gain, min(max_gain, target - lufs))
+                y = (y * (10 ** (gain_db / 20.0))).astype(np.float32)
+                y = audio_qc.limit_peak(y, sr, ceiling_dbfs=peak)
+                audio_qc.save_wav(dest, y, sr, subtype="PCM_16")
+                gains.append(gain_db)
+            except Exception:
+                shutil.copyfile(wav, dest)
+        if gains:
+            self.emit(TrainEvent(
+                stage="prepare", level="info",
+                message=(f"素材响度已对齐到 {target:.0f} LUFS"
+                         f"（增益 {min(gains):+.1f} ~ {max(gains):+.1f} dB）")))
+            if max(gains) >= max_gain - 0.01:
+                self.emit(TrainEvent(
+                    stage="prepare", level="warn",
+                    message=("素材本身音量很低（已顶到 +%.0f dB 上限），"
+                             "建议在安静环境靠近麦克风重录，否则底噪会被一起放大）"
+                            % max_gain)))
         # 写训练用清单：绝对 wav 路径 | 说话人 | ZH | 文本（4 列竖线）
         src = self.dataset_dir / "dataset.list"
         lines = []
