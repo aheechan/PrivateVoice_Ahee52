@@ -24,7 +24,7 @@ roberta 621MB、bigvgan-24k 429MB、hubert 180MB、s1v3 148MB、fast_langdetect 
 | `SoVITS_weights_v4\*_e6_*`、`*_e7_*` | 144 MB | 同上 |
 | `GPT_weights_v3\*-e6.ckpt`、`*-e7.ckpt` | 296 MB | 同上，角色只用 `-e8.ckpt` |
 | `**\__pycache__\`（约 4900 个目录） | 120 MB | Python 首次运行会重建 |
-| 合计 | **~716 MB** | 12.62 → **11.92 GB** |
+| 合计 | **~716 MB** | 12.62 → 11.92 GB（跑完自检后 __pycache__ 重建，最终安装包 12.04 GB） |
 
 删除后跑分发包自检：**SELFTEST PASS**（v3 角色走 Aqua、v4 角色走 upstream-v4 都能出声）。
 
