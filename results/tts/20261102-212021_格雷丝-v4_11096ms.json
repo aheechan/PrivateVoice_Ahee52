@@ -1,0 +1,15 @@
+{
+  "time": "20261102-212021",
+  "character": "格雷丝_v4",
+  "user": "为什么人越累越睡不着？简单说说你的看法。",
+  "reply": "可能身体太困了，脑子反而像上了发条停不下来。就像车没油了还在空转，嗡嗡响得厉害。你最近是不是总在想些烦心事？",
+  "sample_rate": 48000,
+  "audio_sec": 6.56,
+  "sentences": 5,
+  "asr_ms": 0.5,
+  "llm_ttft_ms": 1173.9,
+  "tts_first_ms": null,
+  "e2e_ms": 11096.5,
+  "provider": "local-qwen35-9b",
+  "style": "gentle"
+}

@@ -1,0 +1,15 @@
+{
+  "time": "20261102-212343",
+  "character": "格雷丝_v4",
+  "user": "嗯，那你现在想干嘛？",
+  "reply": "正准备歇口气，听听窗外的动静，顺便琢磨会儿你的心情。要不要也一起发会儿呆，或者聊聊别的轻松点的话题？",
+  "sample_rate": 48000,
+  "audio_sec": 6.21,
+  "sentences": 5,
+  "asr_ms": 0.6,
+  "llm_ttft_ms": 843.4,
+  "tts_first_ms": null,
+  "e2e_ms": 2927.1,
+  "provider": "local-qwen35-9b",
+  "style": "gentle"
+}

@@ -1,0 +1,15 @@
+{
+  "time": "20261102-212326",
+  "character": "格雷丝_v4",
+  "user": "为什么人越累越睡不着？说说你的看法。",
+  "reply": "又是这个问题呀，换个角度想：身体累了想关机，脑子却像没拔电源的灯，亮着呢。也许是因为太在意睡着这件事，反而更紧张了？",
+  "sample_rate": 48000,
+  "audio_sec": 7.51,
+  "sentences": 6,
+  "asr_ms": 0.6,
+  "llm_ttft_ms": 785.8,
+  "tts_first_ms": null,
+  "e2e_ms": 5099.7,
+  "provider": "local-qwen35-9b",
+  "style": "gentle"
+}

@@ -24,17 +24,19 @@ class FirstRunWizard(QDialog):
     def __init__(self, config: Config, parent=None):
         super().__init__(parent)
         self.config = config
-        self.setWindowTitle("情感陪伴器_v1 · 首次运行")
+        self.setWindowTitle("Enjoy Your Private Time · 首次运行")
         self.resize(620, 520)
         self._build()
 
     def _build(self) -> None:
         root = QVBoxLayout(self)
-        title = QLabel("欢迎使用 情感陪伴器_v1")
-        title.setStyleSheet("font-size:20px;font-weight:600;")
+        title = QLabel("Enjoy Your Private Time")
+        title.setObjectName("Title")
+        title.setStyleSheet("font-size:24px;font-weight:600;letter-spacing:1px;")
         root.addWidget(title)
-        sub = QLabel("这台电脑第一次运行，先做三项自检。全部通过就可以按住热键说话了。")
-        sub.setStyleSheet("color:#666;")
+        sub = QLabel("享受你的私人独处时间。\n这台电脑是第一次运行，先做三项自检；"
+                     "全部通过就可以按住热键说话了。")
+        sub.setObjectName("Muted")
         sub.setWordWrap(True)
         root.addWidget(sub)
 

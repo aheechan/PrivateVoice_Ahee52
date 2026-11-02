@@ -54,7 +54,7 @@ class Character:
     persona: str = ""
     system_prompt_ref: str = "prompts/companion_system.txt"
     greeting: str = ""
-    llm: dict[str, Any] = field(default_factory=lambda: {"temperature": 0.8, "max_tokens": 256})
+    llm: dict[str, Any] = field(default_factory=lambda: {"temperature": 0.8, "max_tokens": 320})
     voice: dict[str, Any] = field(default_factory=lambda: {
         "mode": "finetune", "engine": "gpt-sovits-v3",
         "gpt_ckpt": "", "sovits_ckpt": "", "reference": "", "reference_text": "",

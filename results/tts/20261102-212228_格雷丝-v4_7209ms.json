@@ -1,0 +1,15 @@
+{
+  "time": "20261102-212228",
+  "character": "格雷丝_v4",
+  "user": "为什么人越累越睡不着？说说你的看法。",
+  "reply": "脑子太清醒，身体却想罢工，这矛盾劲儿最难受了。有时候越是想睡，神经反而绷得更紧。你睡前会不会忍不住刷手机或者想事情？",
+  "sample_rate": 48000,
+  "audio_sec": 7.36,
+  "sentences": 6,
+  "asr_ms": 0.5,
+  "llm_ttft_ms": 787.2,
+  "tts_first_ms": null,
+  "e2e_ms": 7209.5,
+  "provider": "local-qwen35-9b",
+  "style": "gentle"
+}

@@ -90,6 +90,8 @@ class WaveformWidget(QWidget):
 # ---------------------------------------------------------------------------
 class NewCharacterWizard(QWizard):
     training_state = Signal(bool, str)
+    training_begin = Signal()          # 训练即将开始：主程序可据此释放模型
+    training_end = Signal(bool)        # 训练结束（True=成功）：可据此重新加载
 
     def __init__(self, config: Config, store: CharacterStore, parent=None,
                  character_id: str | None = None):
@@ -643,6 +645,7 @@ class TrainPage(QWizardPage):
         if seg is None:
             QMessageBox.warning(self, "无法训练", "还没有切分好的数据集。")
             return
+        self.wiz.training_begin.emit()
         self.wiz.state["plan"] = plan
         self.log.clear()
         self.progress.setValue(0)
@@ -681,6 +684,7 @@ class TrainPage(QWizardPage):
 
     def _on_done(self, result: dict) -> None:
         self._done = True
+        self.wiz.training_end.emit(True)
         self.progress.setValue(100)
         self.status.setText("训练完成，正在生成试听…")
         self.btn_cancel.setEnabled(False)
@@ -695,6 +699,7 @@ class TrainPage(QWizardPage):
             "训练结束后请重启软件，或点「加载模型」重新加载。")
 
     def _on_failed(self, msg: str) -> None:
+        self.wiz.training_end.emit(False)
         self.status.setText(f"训练失败：{msg}")
         self.btn_start.setEnabled(True)
         self.btn_cancel.setEnabled(False)

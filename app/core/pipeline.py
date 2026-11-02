@@ -217,16 +217,32 @@ class Pipeline:
                 self._emit("info", text="TTS 引擎复用（已加载）")
             return self._tts
 
+    def vram_free_gb(self) -> float:
+        try:
+            import torch
+            return round(torch.cuda.mem_get_info()[0] / 1024 ** 3, 2)
+        except Exception:
+            return 0.0
+
     def release_models(self) -> dict[str, Any]:
         """卸载 ASR + TTS，把显存让给训练。"""
         out: dict[str, Any] = {}
+        import gc
+
+        try:
+            import torch
+            torch.cuda.synchronize()
+            out["vram_free_before_gb"] = round(torch.cuda.mem_get_info()[0] / 1024 ** 3, 2)
+        except Exception:
+            pass
         with self._tts_lock:
-            if self._tts is not None:
-                try:
-                    self._tts.unload()
-                except Exception as exc:  # noqa: BLE001
-                    out["tts_error"] = str(exc)
-                self._tts = None
+            engine, self._tts = self._tts, None
+        if engine is not None:
+            try:
+                engine.unload()
+            except Exception as exc:  # noqa: BLE001
+                out["tts_error"] = str(exc)
+            del engine
         self._tts_key = ("", "")
         self._tts_ready.clear()
         self._asr_ready.clear()
@@ -235,13 +251,16 @@ class Pipeline:
         except Exception as exc:  # noqa: BLE001
             out["asr_error"] = str(exc)
         try:
-            import gc
-
             import torch
             gc.collect()
+            torch.cuda.synchronize()
             torch.cuda.empty_cache()
-            out["vram_free_gb"] = round(
-                torch.cuda.mem_get_info()[0] / 1024 ** 3, 2)
+            torch.cuda.ipc_collect() if hasattr(torch.cuda, "ipc_collect") else None
+            free, total = torch.cuda.mem_get_info()
+            out["vram_free_gb"] = round(free / 1024 ** 3, 2)
+            out["vram_total_gb"] = round(total / 1024 ** 3, 2)
+            out["torch_allocated_gb"] = round(torch.cuda.memory_allocated() / 1024 ** 3, 2)
+            out["torch_reserved_gb"] = round(torch.cuda.memory_reserved() / 1024 ** 3, 2)
         except Exception:
             pass
         self._emit("info", text=f"已释放模型：{out}")
@@ -513,7 +532,7 @@ class Pipeline:
                 for delta in self.llm.chat_stream(
                         self._messages(user_text),
                         temperature=float((ch.llm or {}).get("temperature", 0.8)),
-                        max_tokens=int((ch.llm or {}).get("max_tokens", 160)),
+                        max_tokens=int((ch.llm or {}).get("max_tokens", 320)),
                         sampling=self._style(),
                         cancel=cancel):
                     if cancel.is_set():

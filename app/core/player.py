@@ -116,10 +116,17 @@ class Player:
 
     # -- 播放控制 ------------------------------------------------------
     def begin_utterance(self) -> None:
-        """一轮回复开始：重置计时。输出流延迟到第一块真实数据再打开，
-        避免开头几秒对着空缓冲写静音（也会让首包时间统计失真）。"""
+        """一轮回复开始：**先清空上一轮残留的缓冲**，再重置计时。
+
+        以前这里只重置计时，如果上一轮被打断、或末尾的 80ms 句间静音还在队列里，
+        新的一轮开口就会先放出一小段旧音频——听感就是"开头有一截延音"。
+        """
+        with self._lock:
+            self._buf.clear()
+            self._playing = False
         self.t_play_start = None
         self.played_samples = 0
+        self.underruns = 0
         self._abort.clear()
         self._resampler.reset()
 

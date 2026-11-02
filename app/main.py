@@ -341,8 +341,47 @@ class MainController(QObject):
         self._wizard = NewCharacterWizard(self.config, self.store, parent=None,
                                           character_id=character_id)
         self._wizard.training_state.connect(self.set_training)
+        self._wizard.training_begin.connect(self._release_for_training)
+        self._wizard.training_end.connect(self._reload_after_training)
         self._wizard.finished.connect(self._on_wizard_done)
         self._wizard.show()
+
+    def _release_for_training(self) -> None:
+        """训练前自动释放模型（手动按钮之外的第二条保障）。"""
+        pipe = self.pipeline
+        if pipe is None or not self._models_loaded:
+            return
+        try:
+            info = pipe.release_models()
+            self._models_loaded = False
+            if self._main is not None:
+                self._main.set_models_loaded(False)
+            self.tray.notify(
+                "已为训练释放显存",
+                f"当前可用显存 {info.get('vram_free_gb', '?')} GB；训练结束后会自动重新加载。",
+                5000)
+        except Exception as exc:  # noqa: BLE001
+            self.log.warning("训练前释放模型失败：%s", exc)
+
+    def _reload_after_training(self, ok: bool) -> None:
+        """训练结束后把模型加载回来（不阻塞 UI）。"""
+        import threading
+
+        pipe = self.pipeline
+        if pipe is None or self._models_loaded:
+            return
+
+        def work() -> None:
+            try:
+                pipe.load_models()
+                self._models_loaded = True
+                self.bridge.warmupFinished.emit({"reload": True})
+                self.tray.notify("模型已重新加载", "可以继续说话了。", 3000)
+            except Exception as exc:  # noqa: BLE001
+                self.log.warning("训练后重新加载模型失败：%s", exc)
+                self.tray.notify("重新加载失败", f"{exc}；请重启软件。", 8000)
+
+        threading.Thread(target=work, daemon=True).start()
 
     def _on_wizard_done(self, result: int) -> None:
         if self._wizard is not None:
@@ -424,14 +463,22 @@ class MainController(QObject):
                     "释放后不能马上说话，需要再点一次「加载模型」。继续？"
             ) != QMessageBox.Yes:
                 return
+            before = pipe.vram_free_gb()
             info = pipe.release_models()
+            after = info.get("vram_free_gb", pipe.vram_free_gb())
             self._models_loaded = False
             if self._main is not None:
                 self._main.set_models_loaded(False)
                 self._main.set_warm(False)
                 self._main.set_warmup_status(
-                    f"模型已释放，当前可用显存约 {info.get('vram_free_gb', '?')} GB")
-            self.tray.notify("模型已释放", "显存已让出；训练完再点「加载模型」。", 4000)
+                    f"模型已释放：可用显存 {before:.2f} → {after:.2f} GB")
+            QMessageBox.information(
+                self, "模型已释放",
+                f"可用显存：{before:.2f} GB → {after:.2f} GB\n"
+                f"（释放 {max(0.0, after - before):.2f} GB；"
+                f"torch 占用 {info.get('torch_allocated_gb', 0):.2f} GB）\n\n"
+                "本地 LLM 是独立进程，不在这部分里；要腾它的显存请停掉 llama-server。\n"
+                "训练结束后点「加载模型」即可恢复。")
             return
 
         self._models_loaded = True
