@@ -119,11 +119,13 @@ def estimate_noise_profile(noise: np.ndarray, sr: int) -> NoiseProfile:
 class Recorder:
     """后台线程录音；UI 通过 on_level / on_done 回调取数据。"""
 
-    def __init__(self, samplerate: int = 48000, channels: int = 1,
+    def __init__(self, samplerate: int | None = None, channels: int = 1,
                  device: int | None = None):
-        self.samplerate = samplerate
+        self._requested_sr = samplerate
         self.channels = channels
         self.device = device
+        self._sr = int(samplerate or 48000)
+        self._ch = channels
         self._q: queue.Queue[np.ndarray] = queue.Queue()
         self._stream: sd.InputStream | None = None
         self._frames: list[np.ndarray] = []
@@ -133,23 +135,77 @@ class Recorder:
         self.started_at: float = 0.0
 
     def _callback(self, indata, frames, time_info, status):  # noqa: ANN001
-        mono = indata[:, 0].copy() if indata.ndim > 1 else indata.copy()
+        if indata.ndim > 1 and indata.shape[1] > 1:
+            mono = indata.mean(axis=1).astype(np.float32)
+        else:
+            mono = np.asarray(indata, dtype=np.float32).reshape(-1).copy()
         self._q.put(mono)
+
+    def _resolve_device(self) -> int | None:
+        """配置里的设备索引在新机器上可能失效，失效就回落到系统默认。"""
+        idx = self.device
+        try:
+            if idx is not None:
+                info = sd.query_devices(idx)
+                if int(info.get("max_input_channels", 0)) > 0:
+                    return int(idx)
+        except Exception:
+            pass
+        try:
+            default = sd.default.device[0]
+            if default is not None and int(default) >= 0:
+                return int(default)
+        except Exception:
+            pass
+        raise RuntimeError(
+            "没有检测到可用的麦克风。请插上麦克风，或在「设置 → 音频设备」里选一个输入设备。")
 
     def start(self) -> None:
         if self._recording:
             return
+        dev = self._resolve_device()
+        try:
+            caps = sd.query_devices(dev if dev is not None else sd.default.device[0])
+            dev_sr = int(caps.get("default_samplerate") or 48000)
+            dev_ch = int(caps.get("max_input_channels") or 1)
+        except Exception:
+            dev_sr, dev_ch = 48000, 1
+        candidates = []
+        for sr in ([self._requested_sr] if self._requested_sr else []) + [dev_sr, 48000, 44100]:
+            for ch in ([self.channels] if self.channels else []) + [1, 2]:
+                if (sr, ch) not in candidates:
+                    candidates.append((sr, ch))
+        last_err: Exception | None = None
+        for sr, ch in candidates:
+            if ch > dev_ch:
+                continue
+            try:
+                stream = sd.InputStream(
+                    samplerate=sr, channels=ch, device=dev, dtype="float32",
+                    blocksize=int(sr * 0.02), callback=self._callback)
+                stream.start()
+            except Exception as exc:  # noqa: BLE001
+                last_err = exc
+                continue
+            self._stream = stream
+            self._sr, self._ch = sr, ch
+            break
+        if self._stream is None:
+            raise RuntimeError(
+                f"麦克风打不开（设备 {dev}）。可能是被其它程序占用，或系统隐私设置里"
+                f"没允许桌面应用使用麦克风。原始错误：{last_err}")
         self._frames.clear()
         self._recording = True
         self.started_at = time.time()
-        blocksize = int(self.samplerate * 0.02)
-        self._stream = sd.InputStream(
-            samplerate=self.samplerate, channels=self.channels,
-            device=self.device, dtype="float32", blocksize=blocksize,
-            callback=self._callback,
-        )
-        self._stream.start()
         threading.Thread(target=self._drain, daemon=True).start()
+
+    @property
+    def samplerate(self) -> int:
+        return self._sr
+
+    @property
+    def actual_channels(self) -> int:
+        return self._ch
 
     def _drain(self) -> None:
         while self._recording:
@@ -170,8 +226,10 @@ class Recorder:
                 self._stream.close()
             finally:
                 self._stream = None
+        time.sleep(0.05)          # 让 drain 线程把尾巴收完
         with self._lock:
             data = np.concatenate(self._frames) if self._frames else np.zeros(0, np.float32)
+            self._frames.clear()
         return data
 
     @property

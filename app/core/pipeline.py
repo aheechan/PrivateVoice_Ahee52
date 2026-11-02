@@ -137,8 +137,7 @@ class Pipeline:
             sentence_gap_ms=int(config.get("player.sentence_gap_ms", 80)),
             limiter_dbtp=float(config.get("player.limiter_dbtp", -1.0)),
         )
-        self.recorder = audio_io.Recorder(
-            samplerate=48000, device=config.audio.get("input_device"))
+        self.recorder = audio_io.Recorder(device=config.audio.get("input_device"))
         self._tts: TTSEngine | None = None
         self.style_id = str(config.get("llm.default_style", "gentle"))
         self._tts_key: tuple[str, str] = ("", "")
@@ -297,12 +296,13 @@ class Pipeline:
             self._emit("error", text=f"录音停止失败：{exc}")
             self._set_state(State.IDLE)
             return
-        if data is None or len(data) < 1600:
+        sr_rec = int(getattr(self.recorder, "samplerate", 48000))
+        if data is None or len(data) < sr_rec * 0.03:
             self._emit("error", text="没听清，再说一次")
             self._set_state(State.IDLE)
             return
         self._t_release = t
-        self.submit_audio(data, 48000)
+        self.submit_audio(data, sr_rec)
 
     def submit_audio(self, samples: np.ndarray, sr: int,
                      t_press: float | None = None,

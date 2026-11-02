@@ -323,13 +323,15 @@ class AudioPage(QWizardPage):
             self._timer.timeout.connect(self._tick)
             self._timer.start(200)
         else:
-            data = self._recorder.stop()
+            rec = self._recorder
+            sr = int(getattr(rec, "samplerate", 48000))
+            data = rec.stop()
             self._recorder = None
             if self._timer:
                 self._timer.stop()
             self.btn_rec.setText("开始录制")
             dest = self.wiz.dataset_dir() / "raw.wav"
-            audio_io.save_recording(data, 48000, dest)
+            audio_io.save_recording(data, sr, dest)
             self._set_source(str(dest))
 
     def _tick(self) -> None:
