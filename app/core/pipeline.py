@@ -96,6 +96,30 @@ class PipelineEvent:
     detail: str = ""
 
 
+def _trim_edges(x: np.ndarray, sr: int, thresh_db: float = -50.0,
+                keep_ms: float = 30.0) -> np.ndarray:
+    """去掉句首句尾的静音。
+
+    v3 每句都会自带约 300ms 尾静音（训练片段两端本来就留了 padding），
+    不裁的话句与句之间会叠出 300ms+ 的空洞，听起来就是"断断续续"。
+    """
+    if x.size == 0:
+        return x
+    frame = max(1, int(sr * 0.01))
+    n = x.size // frame
+    if n < 2:
+        return x
+    rms = np.sqrt(np.mean(x[: n * frame].reshape(n, frame) ** 2, axis=1) + 1e-12)
+    db = 20 * np.log10(rms + 1e-12)
+    voiced = np.where(db > thresh_db)[0]
+    if voiced.size == 0:
+        return x
+    keep = int(sr * keep_ms / 1000)
+    a = max(0, voiced[0] * frame - keep)
+    b = min(x.size, (voiced[-1] + 1) * frame + keep)
+    return x[a:b]
+
+
 class Pipeline:
     def __init__(self, config: Any, store: Any, character: Any,
                  on_event: Callable[[PipelineEvent], None] | None = None):
@@ -480,11 +504,12 @@ class Pipeline:
                 self._set_state(State.IDLE)
                 return
             self._set_state(State.SPEAKING)
-            timeout = 60.0
-            while self.player.playing and not cancel.is_set():
-                timeout -= 0.02
-                if timeout <= 0:
+            timeout = 90.0
+            while not cancel.is_set() and timeout > 0:
+                alive = self._tts_thread is not None and self._tts_thread.is_alive()
+                if not alive and not self.player.playing:
                     break
+                timeout -= 0.02
                 time.sleep(0.02)
             self._join_tts()
             if cancel.is_set():
@@ -547,17 +572,38 @@ class Pipeline:
         ref = str(self.store.dir_of(ch.id) / (ch.voice.get("reference") or "reference.wav"))
         ref_text = ch.voice.get("reference_text", "")
         failed = 0
+        # 先攒够 2 句再开播：合成比实时慢，只攒 1 句的话第二句必然等不到位
+        held: list[tuple[np.ndarray, int]] = []
+        play_started = False
+
+        def flush_held() -> None:
+            nonlocal play_started
+            for data, sr in held:
+                self.player.push(data, sr)
+                self.player.push_gap()
+            held.clear()
+            play_started = True
+
+        def offer(data: np.ndarray, sr: int) -> None:
+            nonlocal play_started
+            held.append((data, sr))
+            if play_started or len(held) >= 2:
+                flush_held()
+
         while True:
             q = self._tts_queue
             if q is None:
+                flush_held()
                 return
             try:
                 text = q.get(timeout=0.03)
             except queue.Empty:
                 if self._tts_stop.is_set() or self._cancel.is_set():
+                    flush_held()
                     return
                 continue
             if text is None:
+                flush_held()
                 return
             if self._cancel.is_set():
                 return
@@ -596,13 +642,15 @@ class Pipeline:
                                 pass
                             gen = None
                 if self._cancel.is_set():
+                    flush_held()
                     return
                 if buf:
                     data = np.concatenate(buf)
+                    # 去掉模型自带的 ~300ms 首尾静音，否则句间会叠出明显空洞
+                    data = _trim_edges(data, sr_out)
                     # 句首句尾各 8ms 淡入淡出：避免直接硬切造成的"咔"声
                     data = audio_qc.fade(data, sr_out, 8.0)
-                    self.player.push(data, sr_out)
-                self.player.push_gap()
+                    offer(data, sr_out)
                 failed = 0
                 self._emit("info", text=f"TTS 完成：{text[:12]}… "
                                         f"{chunks} 块 / {time.perf_counter()-t_start:.1f}s")
