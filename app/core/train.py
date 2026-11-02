@@ -650,7 +650,15 @@ class TrainingRunner:
             src, text = picked
             chardir = self.store.dir_of(self.cid)
             ref_path = chardir / "reference.wav"
-            shutil.copyfile(src, ref_path)
+            try:
+                from app.core import audio_qc
+
+                y, sr = audio_qc.decode(str(src))
+                y, _before, _after = audio_qc.normalize_loudness(
+                    y, sr, target_lufs=-20.0, peak_dbtp=-2.0)
+                audio_qc.save_wav(ref_path, y, sr, subtype="PCM_16")
+            except Exception:
+                shutil.copyfile(src, ref_path)
             (chardir / "reference.txt").write_text(text.strip() + "\n", encoding="utf-8")
             self.store.set_reference(self.cid, ref_path, text)
             self.emit(TrainEvent(stage="reference",
@@ -666,7 +674,45 @@ class TrainingRunner:
             if p.exists():
                 shutil.copyfile(p, ck / p.name)
         self._cleanup_temp()
+        self._sanity_check(s1, s2, ref_path)
         return ref_path
+
+    def _sanity_check(self, s1: Path, s2: Path, ref_path: Path | None) -> None:
+        """训练完立刻合成一句，确认新权重真的能出声（避免"训练完没声音"）。"""
+        try:
+            import numpy as np
+
+            from app.core.tts import make_engine
+
+            if ref_path is None or not Path(ref_path).exists():
+                self.emit(TrainEvent(stage="done", level="warn",
+                                     message="没有可用的参考音频，试听可能没声音"))
+                return
+            ref_text = ""
+            txt = self.store.dir_of(self.cid) / "reference.txt"
+            if txt.exists():
+                ref_text = txt.read_text(encoding="utf-8").strip()
+            engine = make_engine(self.config)
+            engine.load(str(s1), str(s2))
+            parts = []
+            sr = 48000
+            for c in engine.synthesize_stream("你好，我是你的新伙伴。", str(ref_path),
+                                              ref_text):
+                parts.append(np.asarray(c.samples, np.float32))
+                sr = c.samplerate
+            engine.unload()
+            if not parts:
+                raise RuntimeError("没有生成任何音频")
+            x = np.concatenate(parts)
+            peak = float(np.max(np.abs(x))) if x.size else 0.0
+            rms = float(np.sqrt(np.mean(x ** 2))) if x.size else 0.0
+            self.emit(TrainEvent(
+                stage="done", level="ok" if peak > 0.02 else "warn",
+                message=(f"自检：合成 {x.size/sr:.2f}s，峰值 {peak:.2f}，RMS {rms:.3f}"
+                         + ("" if peak > 0.02 else "（音量异常偏低，请检查素材是否太轻/太短）"))))
+        except Exception as exc:  # noqa: BLE001
+            self.emit(TrainEvent(stage="done", level="warn",
+                                 message=f"自检合成失败：{exc}"))
 
     # -- 工具 ----------------------------------------------------------
     @staticmethod

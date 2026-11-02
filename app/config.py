@@ -88,7 +88,7 @@ VRAM_SAFETY_FACTOR = 1.3
 # 默认配置
 # ---------------------------------------------------------------------------
 DEFAULT_CONFIG: dict[str, Any] = {
-    "profile": "conservative",
+    "profile": "balanced",
     "paths": {
         "models": str(ROOT / "GPT-SoVITS" / "GPT_SoVITS" / "pretrained_models"),
         "gpt_sovits": str(ROOT / "GPT-SoVITS"),
