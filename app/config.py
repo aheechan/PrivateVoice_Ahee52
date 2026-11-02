@@ -309,8 +309,25 @@ class Config:
         if path.exists():
             raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
         cfg = cls(data=_deep_merge(DEFAULT_CONFIG, raw), path=path)
+        cfg._heal_paths()
         cfg.ensure_dirs()
         return cfg
+
+    def _heal_paths(self) -> None:
+        """别处拷来的 config.yaml 可能带失效的绝对路径。
+
+        `paths.gpt_sovits` 不存在时，把所有 paths 重置成本程序所在目录的默认值，
+        避免“能启动但模型全找不到”。
+        """
+        gpt = Path(str(self.get("paths.gpt_sovits", "")))
+        if gpt.exists():
+            return
+        for key, value in DEFAULT_CONFIG["paths"].items():
+            self.set(f"paths.{key}", value)
+        try:
+            self.save()
+        except OSError:
+            pass
 
     def save(self, path: Path | None = None) -> Path:
         path = Path(path) if path else self.path

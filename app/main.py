@@ -386,7 +386,7 @@ def install_autostart(enabled: bool) -> None:
 
     key_path = r"Software\Microsoft\Windows\CurrentVersion\Run"
     exe = sys.executable
-    cmd = f'"{exe}" "{Path(ROOT) / "app" / "main.py"}"'
+    cmd = f'"{exe}" "{Path(ROOT) / "app" / "main.py"}" --tray-only'
     try:
         with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path, 0,
                             winreg.KEY_SET_VALUE) as key:
@@ -411,7 +411,12 @@ def main() -> int:
     log.info("VoiceLab Stage3 启动，工作目录 %s", ROOT)
 
     if _already_running():
-        log.info("已有实例在运行，退出")
+        log.info("已有实例在运行，提示用户看托盘")
+        QMessageBox.information(
+            None, APP_NAME,
+            "情感陪伴器已经在运行了。\n\n"
+            "它常驻在系统托盘（任务栏右下角，可能被折叠进“^”里）。\n"
+            "右键托盘图标可以打开「角色管理」「设置」「诊断」。")
         return 0
     if not QSystemTrayIcon.isSystemTrayAvailable():
         QMessageBox.critical(None, APP_NAME, "系统托盘不可用，无法启动。")
@@ -437,14 +442,29 @@ def main() -> int:
     # 首启向导：模型目录 / provider / 热键确认
     if not config.get("ui.first_run_done", False):
         try:
+            from PySide6.QtWidgets import QDialog
             from app.ui.first_run import FirstRunWizard
             wiz = FirstRunWizard(config)
-            if wiz.exec() != wiz.Accepted:
-                log.info("首启向导被取消，退出")
-                return 0
+            code = wiz.exec()
+            log.info("首启向导返回 %s", code)
+            if code != QDialog.DialogCode.Accepted:
+                log.info("首启向导被取消，继续在托盘运行")
             controller.refresh_characters()
         except Exception as exc:  # noqa: BLE001
-            log.warning("首启向导失败（不阻塞启动）：%s", exc)
+            log.warning("首启向导失败（不阻塞启动）：%s", exc, exc_info=True)
+
+    # 让用户知道它去哪儿了（Windows 默认会把新图标塞进溢出区）
+    controller.tray.notify(
+        "情感陪伴器_v1 已启动",
+        "图标在系统托盘（任务栏右下角，可能被折叠）。右键图标有菜单；"
+        "按住 shift+a 说话。", 8000)
+
+    # 手动启动时直接打开一个窗口，避免"点了没反应"的错觉；开机自启只留托盘
+    if "--tray-only" not in sys.argv:
+        try:
+            controller.open_manager()
+        except Exception as exc:  # noqa: BLE001
+            log.warning("打开角色管理失败：%s", exc)
 
     log.info("托盘就绪")
     return app.exec()
