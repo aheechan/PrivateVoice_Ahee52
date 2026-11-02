@@ -265,3 +265,9 @@ runtime\python.exe tools\selftest.py     # 期望最后一行 SELFTEST PASS
 GPU 拒卡逻辑有单测覆盖（	ests/test_gpu_guard.py，含 5070 Ti sm_120 放行）。
 
 > 5070 Ti 未实机验证；包内已带 ModelScope 缓存（ASR/标点/说话人），换机首次运行不需要联网。
+## 主界面（2026-11-02 追加）
+
+pp/ui/main_window.py：头像 + 状态灯 + **按住说话按钮**（鼠标按住等同热键）+ 最近一轮对话 +
+预热按钮 + 设置/大模型/诊断入口。关闭只是收进托盘。
+角色管理现在是「左列表 + 右编辑栏」：名字、开场白、人设、LLM 温度/max_tokens、头像；
+保存后下一轮对话立即生效。--tray-only 启动时只留托盘（开机自启用）。

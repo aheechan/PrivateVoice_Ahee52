@@ -67,6 +67,7 @@ class TrayIcon(QSystemTrayIcon):
 
     new_character = Signal()
     manage_characters = Signal()
+    show_main = Signal()
     open_settings = Signal()
     open_diagnostics = Signal()
     open_llm_settings = Signal()
@@ -150,7 +151,7 @@ class TrayIcon(QSystemTrayIcon):
 
     def _on_activated(self, reason: QSystemTrayIcon.ActivationReason) -> None:
         if reason == QSystemTrayIcon.Trigger:
-            self.manage_characters.emit()
+            self.show_main.emit()
 
     def notify(self, title: str, message: str, msec: int = 4000) -> None:
         self.showMessage(title, message, make_icon(self._state), msec)

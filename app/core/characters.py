@@ -86,7 +86,7 @@ class CharacterStore:
     def _load_index(self) -> dict[str, Any]:
         if self.index_path.exists():
             try:
-                data = json.loads(self.index_path.read_text(encoding="utf-8"))
+                data = json.loads(self.index_path.read_text(encoding="utf-8-sig"))
                 data.setdefault("characters", [])
                 return data
             except Exception:
@@ -124,7 +124,7 @@ class CharacterStore:
             if not p.exists():
                 continue
             try:
-                c = Character.from_dict(json.loads(p.read_text(encoding="utf-8")))
+                c = Character.from_dict(json.loads(p.read_text(encoding="utf-8-sig")))
             except Exception:
                 continue
             self._relocate(c)
@@ -137,7 +137,7 @@ class CharacterStore:
         p = self.dir_of(cid) / "profile.json"
         if not p.exists():
             raise KeyError(f"角色不存在: {cid}")
-        c = Character.from_dict(json.loads(p.read_text(encoding="utf-8")))
+        c = Character.from_dict(json.loads(p.read_text(encoding="utf-8-sig")))
         self._relocate(c)
         return c
 

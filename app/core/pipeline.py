@@ -329,6 +329,15 @@ class Pipeline:
             template = "你是一个说话简短的语音陪伴角色。"
         sys_text = system_prompt(template, name=ch.name, age="", identity="",
                                  relation="")
+        # 角色人设必须真正进 system prompt，否则 LLM 只会按通用模板说话
+        persona = (getattr(ch, "persona", "") or "").strip()
+        if persona:
+            sys_text = (sys_text.rstrip() +
+                        f"\n\n【你的设定：{ch.name}】\n" + persona +
+                        "\n\n以上设定优先于前面的通用规则；说话要像这个人，不要解释设定本身。")
+        greeting = (getattr(ch, "greeting", "") or "").strip()
+        if greeting:
+            sys_text += f"\n你的开场白是：「{greeting}」（只在第一次见面时用，不要每轮重复）。"
         msgs = [{"role": "system", "content": sys_text.strip()}]
         budget = int(self.config.get("llm.token_budget", 1500))
         msgs += self.history.context(budget_chars=budget)

@@ -81,6 +81,7 @@ class MainController(QObject):
         self.tray = TrayIcon()
         self.tray.new_character.connect(self.open_wizard)
         self.tray.manage_characters.connect(self.open_manager)
+        self.tray.show_main.connect(self.open_main)
         self.tray.open_settings.connect(self.open_settings)
         self.tray.open_llm_settings.connect(self.open_llm_settings)
         self.tray.open_diagnostics.connect(self.open_diagnostics)
@@ -91,6 +92,7 @@ class MainController(QObject):
 
         self._wizard = None
         self._manager = None
+        self._main = None
         self._settings = None
         self._llm_settings = None
         self._diagnostics = None
@@ -116,6 +118,8 @@ class MainController(QObject):
         chars = self.store.list()
         pairs = [(c.id, c.name) for c in chars if c.status == "ready"]
         self.tray.set_characters(pairs, self.store.active_id)
+        if self._main is not None:
+            self._main.set_character(self._current_character())
 
     def _ensure_pipeline(self) -> Pipeline | None:
         ch = self._current_character()
@@ -135,6 +139,8 @@ class MainController(QObject):
         self.store.set_active(cid)
         if self.pipeline is not None:
             self.pipeline.set_character(ch)
+        if self._main is not None:
+            self._main.set_character(ch)
         self.refresh_characters()
         self.tray.notify("已切换角色", f"当前角色：{ch.name}")
         self.set_state("idle", ch.name)
@@ -262,18 +268,79 @@ class MainController(QObject):
             self._wizard = None
         self.refresh_characters()
         self._ensure_pipeline()
+        if self._main is not None:
+            self._main.set_character(self._current_character())
+
+    def open_main(self) -> None:
+        from app.ui.main_window import MainWindow
+
+        if self._main is None:
+            self._main = MainWindow(self.config, self.store)
+            self._main.request_characters.connect(self.open_manager)
+            self._main.request_settings.connect(self.open_settings)
+            self._main.request_llm.connect(self.open_llm_settings)
+            self._main.request_diagnostics.connect(self.open_diagnostics)
+            self._main.request_new_character.connect(self.open_wizard)
+            self._main.request_warmup.connect(self.start_warmup)
+            self._main.talk_pressed.connect(self._on_press)
+            self._main.talk_released.connect(self._on_release)
+            self.bridge.stateChanged.connect(self._main.set_state)
+            self.bridge.userText.connect(self._main.show_user)
+            self.bridge.turnDone.connect(self._main.show_reply)
+            self.bridge.error.connect(self._main.show_error)
+        self._main.set_character(self._current_character())
+        self._main.show()
+        self._main.raise_()
+        self._main.activateWindow()
+        self.log.info("主界面已打开：%s", self._main.windowTitle())
+
+    def start_warmup(self) -> None:
+        """手动预热：把 ASR / TTS 提前加载进显存。"""
+        pipe = self._ensure_pipeline()
+        if pipe is None:
+            self._notify_warmup("还没有可用角色，先新建一个")
+            return
+        if getattr(self, "_warming", False):
+            return
+        self._warming = True
+        self._notify_warmup("预热中…（加载 ASR/TTS，约 20–40 秒）")
+
+        def job():
+            try:
+                info = pipe.warmup()
+                self._notify_warmup(
+                    f"预热完成：ASR {info.get('asr_ms', 0)/1000:.1f}s · "
+                    f"TTS 加载 {info.get('tts_load_s', 0)}s · 试合成 {info.get('tts_prime_s', 0)}s")
+            except Exception as exc:  # noqa: BLE001
+                self._notify_warmup(f"预热失败：{exc}")
+            finally:
+                self._warming = False
+
+        threading.Thread(target=job, daemon=True, name="vlab-warmup-manual").start()
+
+    def _notify_warmup(self, text: str) -> None:
+        self.log.info(text)
+        if self._main is not None:
+            self._main.set_warmup_status(text)
 
     def open_manager(self) -> None:
         from app.ui.char_manager import CharacterManager
 
         if self._manager is None:
             self._manager = CharacterManager(self.config, self.store)
-            self._manager.changed.connect(self.refresh_characters)
+            self._manager.changed.connect(self._on_characters_changed)
             self._manager.new_requested.connect(self.open_wizard)
             self._manager.closed.connect(self._on_manager_closed)
         self._manager.refresh()
         self._manager.show()
         self._manager.raise_()
+
+    def _on_characters_changed(self) -> None:
+        """角色被编辑/删除/切换后，让 pipeline 和主界面都拿到最新对象。"""
+        self.refresh_characters()
+        ch = self._current_character()
+        if ch is not None and self.pipeline is not None:
+            self.pipeline.set_character(ch)
 
     def _on_manager_closed(self) -> None:
         self._manager = None
@@ -377,7 +444,7 @@ def _raise_windows(holder: list) -> None:
     elif ctrl._manager is not None:
         ctrl._manager.raise_()
     else:
-        ctrl.open_manager()
+        ctrl.open_main()
 
 
 def install_autostart(enabled: bool) -> None:
@@ -459,12 +526,12 @@ def main() -> int:
         "图标在系统托盘（任务栏右下角，可能被折叠）。右键图标有菜单；"
         "按住 shift+a 说话。", 8000)
 
-    # 手动启动时直接打开一个窗口，避免"点了没反应"的错觉；开机自启只留托盘
+    # 手动启动时直接打开主界面，避免"点了没反应"的错觉；开机自启只留托盘
     if "--tray-only" not in sys.argv:
         try:
-            controller.open_manager()
+            controller.open_main()
         except Exception as exc:  # noqa: BLE001
-            log.warning("打开角色管理失败：%s", exc)
+            log.warning("打开主界面失败：%s", exc)
 
     log.info("托盘就绪")
     return app.exec()
