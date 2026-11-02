@@ -225,7 +225,7 @@ esults/character_ttfp.json）。
 
 # Stage 4：打包
 
-分发包在 dist\情感陪伴器_v1\（9.45 GB / 49,841 文件），安装器在
+分发包在 dist\情感陪伴器_v1\（11.51 GB / 49,986 文件），安装器在
 dist\installer\（受 Windows 单 exe 4.2GB 限制，分卷为 Setup.exe + .bin）。
 构建脚本是仓库根目录的 installer.iss（Inno Setup 6，Compression=none + 分卷）。
 
@@ -264,4 +264,4 @@ runtime\python.exe tools\selftest.py     # 期望最后一行 SELFTEST PASS
 音频 4.75s）、打断 11ms 全部通过。
 GPU 拒卡逻辑有单测覆盖（	ests/test_gpu_guard.py，含 5070 Ti sm_120 放行）。
 
-> 5070 Ti 未实机验证；包内没有 ASR 模型缓存，换机首次运行需联网下载约 1.1GB。
+> 5070 Ti 未实机验证；包内已带 ModelScope 缓存（ASR/标点/说话人），换机首次运行不需要联网。

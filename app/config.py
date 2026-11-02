@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import copy
+import os
 import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -15,6 +16,29 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = ROOT / "config.yaml"
+
+
+def _setup_model_cache() -> None:
+    """分发包里带了 models_cache\\ 时，优先用它，避免换机还要联网下载。
+
+    必须在 funasr / modelscope / transformers 被 import 之前执行，所以放在
+    config 模块顶层（app 里所有入口都会先 import 它）。
+    """
+    cache = ROOT / "models_cache"
+    if not cache.exists():
+        return
+    ms = cache / "modelscope"
+    if ms.exists():
+        os.environ.setdefault("MODELSCOPE_CACHE", str(ms))
+        os.environ.setdefault("MODELSCOPE_CACHE_MODEL", str(ms / "models"))
+        os.environ.setdefault("MODELSCOPE_MODEL_CACHE", str(ms / "models"))
+    hf = cache / "huggingface"
+    if hf.exists():
+        os.environ.setdefault("HF_HOME", str(hf))
+        os.environ.setdefault("TRANSFORMERS_CACHE", str(hf / "hub"))
+
+
+_setup_model_cache()
 
 ProfileName = Literal["conservative", "balanced", "aggressive"]
 

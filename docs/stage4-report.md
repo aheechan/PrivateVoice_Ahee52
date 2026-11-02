@@ -1,9 +1,9 @@
 # Stage 4 报告：打包（嵌入式 Python + 安装器 + 首启向导）
 
 > 完成日期：2026-11-02
-> 产物：`C:\VoiceLab\dist\情感陪伴器_v1\`（免安装版，9.45 GB / 49,841 文件）
-> 安装器：`C:\VoiceLab\dist\installer\情感陪伴器_v1_Setup.exe`
-> 实机验证：3090 上完成理论运行测试（`SELFTEST PASS`）
+> 产物：`C:\VoiceLab\dist\情感陪伴器_v1\`（免安装版，**11.51 GB / 49,986 文件**）
+> 安装器：`C:\VoiceLab\dist\installer\情感陪伴器_v1_Setup.exe`（分卷，共 11.51 GB）
+> 实机验证：3090 上完成理论运行测试（`SELFTEST PASS`）+ **离线 ASR 验证**
 > **5070 Ti 未实机验证**：本机无此卡；已用 `GpuInfo` 注入方式验证 sm_120 / 16GB 能通过门禁。
 
 ---
@@ -20,6 +20,7 @@
 ├── GPT-SoVITS\              v3 推理/训练代码 + pretrained_models（s1v3/s2Gv3/hubert/roberta）+ G2PWModel
 ├── Aqua-TTS\                aquatts 源码（不再依赖 editable 安装）
 ├── characters\              示例角色：格雷丝、阿岚（路径已改为相对）
+├── models_cache\            内置 ModelScope 缓存（ASR/标点/说话人，2.06 GB，离线可用）
 ├── assets\                  参考音频 + 提示词
 ├── logs\ / datasets\ / results\
 ├── 启动.bat                 启动（pythonw，无控制台）
@@ -67,6 +68,13 @@
 
 ## 3. 打包过程中踩到的坑（都已修）
 
+0. **离线模型**：把 `%USERPROFILE%\.cache\modelscope` 整包复制到 `models_cache\modelscope`，
+   并在 `app/config.py` 顶层（早于 funasr/modelscope import）设 `MODELSCOPE_CACHE` /
+   `MODELSCOPE_CACHE_MODEL` / `MODELSCOPE_MODEL_CACHE`。
+   **验证方式**：把用户缓存目录改名藏起来再跑 ASR，模型路径仍指向包内
+   `models_cache\modelscope\models\...\model.pt`，识别输出正常 → 证明真离线可用。
+   未打包 Whisper large-v3 的 HF 缓存（2.88GB）：它只是 ASR 的降级备选，
+   需要时把 `%USERPROFILE%\.cache\huggingface` 放进 `models_cache\huggingface` 即可（`HF_HOME` 已接）。
 1. **嵌入式 Python 默认不处理 `.pth`**：`python312._pth` 里必须加一行 `import site`，
    否则 `setuptools` 的 distutils 补丁不生效，`funasr` 里 11 个模型模块导入失败
    （注册表从 51 个掉到 40 个，`paraformer-zh` 找不到类 → `TypeError: 'NoneType' object is not callable`）。
@@ -88,9 +96,8 @@
 ## 4. 已知问题
 
 1. **5070 Ti 未实机跑过**：只做了门禁与 sm_120 逻辑验证。真实安装后的验收按你的计划在那台机器完成。
-2. **包内没带 ASR/标点模型缓存**：funasr 的 `paraformer-zh`、`ct-punc`、campplus 仍在
-   `%USERPROFILE%\.cache\modelscope`。**换机首次运行需要联网下载约 1.1GB**；
-   若目标机离线，需要把该缓存目录一并拷过去（可后续加进安装器）。
+2. **包内已带 ASR 缓存**（ModelScope 2.06GB），换机首次运行**不需要联网**；
+   只有 Whisper 降级路径（large-v3，2.88GB）没带，见 §3 第 0 条。
 3. **包内没带 LLM**：llama.cpp 与 GGUF 由用户自备，默认连 `127.0.0.1:8082`。
 4. **安装器未做代码签名**：Windows SmartScreen 会提示“未知发布者”。
 5. **X 光片：`dist\` 不进 git**（9.5GB），仓库里只保留 `installer.iss` 与打包脚本。
