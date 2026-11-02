@@ -233,6 +233,12 @@ class MainController(QObject):
             self.bridge.warmupFinished.emit({"error": str(exc)})
 
     def _on_warmup_finished(self, info: dict) -> None:
+        ok = bool(info) and "tts_error" not in info and not info.get("error")
+        if ok:
+            self.tray.notify("预热完成", "可以按住热键说话了（也可以在窗口里直接打字）", 4000)
+        elif info.get("error") or info.get("tts_error"):
+            self.tray.notify("预热失败", str(info.get("error") or info.get("tts_error"))[:120],
+                             6000)
         if self._main is None:
             return
         self._main.set_warm(True)
