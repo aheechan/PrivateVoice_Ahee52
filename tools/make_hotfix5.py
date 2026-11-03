@@ -8,11 +8,11 @@ HK = ROOT / "dist" / "update_beta2_hotfix5"
 if HK.exists():
     shutil.rmtree(HK)
 HK.mkdir(parents=True)
-for name in ("app", "assets", "tools"):
+for name in ("app", "assets", "tools", "characters"):
     shutil.copytree(PKG / name, HK / name,
                     ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
 
-readme = """beta-2 热修 5（app + assets + tools）
+readme = """beta-2 热修 5 / 等同 beta-3 代码（app + assets + tools + characters）
 ================================
 
 1) 参考音频改为原子写（先写 .tmp，校验能读回来再换名）

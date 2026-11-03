@@ -16,6 +16,7 @@ items = [
     ("assets", PKG / "assets", True),
     ("nltk_data", PKG / "nltk_data", True),
     ("tools", PKG / "tools", True),
+    ("characters", PKG / "characters", True),
 ]
 for name, src, whole in items:
     if src.exists():

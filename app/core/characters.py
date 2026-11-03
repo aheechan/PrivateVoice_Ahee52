@@ -141,18 +141,54 @@ class CharacterStore:
         self._relocate(c)
         return c
 
+    _INSTALL_ROOT = Path(__file__).resolve().parents[2]
+
+    def _search_ckpt(self, name: str) -> Path | None:
+        """在安装目录里按文件名找权重（跨机器搬运后绝对路径会失效）。"""
+        root = self._INSTALL_ROOT
+        candidates = [
+            self.dir_of("") / ".." / "checkpoints",
+            root / "GPT-SoVITS" / "GPT_SoVITS" / "pretrained_models",
+            root / "GPT-SoVITS" / "GPT_SoVITS" / "pretrained_models"
+            / "gsv-v4-pretrained",
+            root / "GPT-SoVITS" / "SoVITS_weights_v4",
+            root / "GPT-SoVITS" / "SoVITS_weights_v3",
+            root / "GPT-SoVITS" / "GPT_weights_v3",
+            root / "models",
+        ]
+        for d in candidates:
+            f = Path(d) / name
+            if f.exists():
+                return f.resolve()
+        # 最后在整个安装目录里找一次（限制深度，避免太慢）
+        try:
+            for f in root.rglob(name):
+                if f.is_file():
+                    return f
+        except Exception:
+            pass
+        return None
+
     def _relocate(self, c: Character) -> None:
-        """角色目录搬到别的机器后，绝对路径会失效；这里回落到 <id>/checkpoints/<文件名>。"""
+        """角色目录搬到别的机器后，绝对路径会失效。
+
+        依次尝试：原路径 → <角色>/checkpoints/<文件名> → 安装目录内按文件名搜索。
+        """
         voice = c.voice or {}
         for key in ("gpt_ckpt", "sovits_ckpt"):
             raw = voice.get(key) or ""
             if raw and Path(raw).exists():
                 continue
-            if not raw:
+            name = Path(raw).name if raw else ""
+            if not name:
                 continue
-            cand = self.dir_of(c.id) / "checkpoints" / Path(raw).name
+            cand = self.dir_of(c.id) / "checkpoints" / name
             if cand.exists():
                 voice[key] = str(cand)
+                continue
+            found = self._search_ckpt(name)
+            if found is not None:
+                voice[key] = str(found)
         c.voice = voice
 
     def name_taken(self, name: str, exclude: str | None = None) -> bool:

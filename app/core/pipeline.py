@@ -266,7 +266,20 @@ class Pipeline:
     def _ensure_tts(self) -> TTSEngine:
         with self._tts_lock:
             ch = self.character
-            key = (ch.voice.get("gpt_ckpt", ""), ch.voice.get("sovits_ckpt", ""))
+            gpt_p = str(ch.voice.get("gpt_ckpt", "") or "")
+            sov_p = str(ch.voice.get("sovits_ckpt", "") or "")
+            # 路径失效时回落到底模（跨机器/默认音色都走这里）
+            if not (gpt_p and Path(gpt_p).exists()):
+                pm = Path(self.config.path_of("gpt_sovits")) / "GPT_SoVITS" / "pretrained_models"
+                if (pm / "s1v3.ckpt").exists():
+                    gpt_p = str(pm / "s1v3.ckpt")
+            if not (sov_p and Path(sov_p).exists()):
+                pm = Path(self.config.path_of("gpt_sovits")) / "GPT_SoVITS" / "pretrained_models"
+                for cand in (pm / "gsv-v4-pretrained" / "s2Gv4.pth", pm / "s2Gv4.pth"):
+                    if cand.exists():
+                        sov_p = str(cand)
+                        break
+            key = (gpt_p, sov_p)
             if self._tts is None:
                 self._tts = make_engine(self.config)
             if key != self._tts_key:
