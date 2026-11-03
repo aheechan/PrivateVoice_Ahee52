@@ -18,6 +18,14 @@ from app.core.characters import CharacterStore
 STATUS_TEXT = {"draft": "草稿", "training": "训练中", "ready": "可用", "failed": "失败"}
 
 
+def _hint(text: str) -> "QLabel":
+    lab = QLabel(text)
+    lab.setWordWrap(True)
+    lab.setObjectName("Muted")
+    lab.setStyleSheet("color:#8f83ad;font-size:11px;")
+    return lab
+
+
 class CharacterManager(QDialog):
     changed = Signal()
     closed = Signal()
@@ -131,7 +139,73 @@ class CharacterManager(QDialog):
         row_llm.addWidget(self.f_max_tokens)
         row_llm.addStretch(1)
         form.addRow("LLM", row_llm)
+        form.addRow("", _hint("温度越高越发散、越容易跑题；max_tokens 越大回复越长、越慢。"))
         v.addLayout(form)
+
+        self.f_speed = QDoubleSpinBox()
+        self.f_speed.setRange(0.7, 1.2)
+        self.f_speed.setSingleStep(0.02)
+        self.f_speed.setDecimals(2)
+        self.f_speed.setValue(0.96)
+        self.f_speed.setFixedWidth(90)
+        self.f_speed.setMinimumHeight(26)
+        self.f_gap = QSpinBox()
+        self.f_gap.setRange(60, 400)
+        self.f_gap.setSingleStep(10)
+        self.f_gap.setValue(130)
+        self.f_gap.setFixedWidth(90)
+        self.f_gap.setMinimumHeight(26)
+        self.f_vtemp = QDoubleSpinBox()
+        self.f_vtemp.setRange(0.3, 1.0)
+        self.f_vtemp.setSingleStep(0.05)
+        self.f_vtemp.setDecimals(2)
+        self.f_vtemp.setValue(0.6)
+        self.f_vtemp.setFixedWidth(90)
+        self.f_vtemp.setMinimumHeight(26)
+        self.f_topk = QSpinBox()
+        self.f_topk.setRange(1, 30)
+        self.f_topk.setValue(5)
+        self.f_topk.setFixedWidth(90)
+        self.f_topk.setMinimumHeight(26)
+        self.f_steps = QSpinBox()
+        self.f_steps.setRange(4, 16)
+        self.f_steps.setValue(4)
+        self.f_steps.setFixedWidth(90)
+        self.f_steps.setMinimumHeight(26)
+        self.f_interj = QDoubleSpinBox()
+        self.f_interj.setRange(0.5, 3.0)
+        self.f_interj.setSingleStep(0.1)
+        self.f_interj.setDecimals(1)
+        self.f_interj.setValue(1.2)
+        self.f_interj.setFixedWidth(90)
+        self.f_interj.setMinimumHeight(26)
+
+        gb_voice = QGroupBox("音色与节奏")
+        vb = QVBoxLayout(gb_voice)
+        vb.setSpacing(2)
+        for title, widget, hint in (
+            ("语速", self.f_speed,
+             "1.0 为原速；调低更从容，超过 1.05 容易糊、颗粒感重。"),
+            ("句间停顿（ms）", self.f_gap,
+             "两句之间留多久；太小显赶、容易拖尾，130-180 比较自然。"),
+            ("音色温度", self.f_vtemp,
+             "越高音色变化越多、情绪更活，但更容易拖音或跑调。"),
+            ("top_k", self.f_topk,
+             "采样范围；偏小更稳但容易把语气词拖长，10-15 更活泼。"),
+            ("采样步数", self.f_steps,
+             "v4 扩散步数；越大越细腻但更慢，4 最快，8 更稳。"),
+            ("语气词上限（秒）", self.f_interj,
+             "单独的“嗯/哦/唔”最多说多久，超过会被平滑收短，治单字延音。"),
+        ):
+            row = QHBoxLayout()
+            lab = QLabel(title)
+            lab.setFixedWidth(110)
+            row.addWidget(lab)
+            row.addWidget(widget)
+            row.addStretch(1)
+            vb.addLayout(row)
+            vb.addWidget(_hint(hint))
+        v.addWidget(gb_voice)
 
         self.info = QLabel("—")
         self.info.setWordWrap(True)
@@ -202,6 +276,13 @@ class CharacterManager(QDialog):
         llm = c.llm or {}
         self.f_temp.setValue(float(llm.get("temperature", 0.8)))
         self.f_max_tokens.setValue(int(llm.get("max_tokens", 160)))
+        voice = ch.voice or {}
+        self.f_speed.setValue(float(voice.get("speed", 0.96)))
+        self.f_gap.setValue(int(voice.get("sentence_gap_ms", 130)))
+        self.f_vtemp.setValue(float(voice.get("temperature", 0.6)))
+        self.f_topk.setValue(int(voice.get("top_k", 5)))
+        self.f_steps.setValue(int(voice.get("sample_steps", 4)))
+        self.f_interj.setValue(float(voice.get("interjection_max_sec", 1.2)))
         av = self.store.avatar_path(c.id)
         if av.exists():
             pm = QPixmap(str(av)).scaled(64, 64, Qt.KeepAspectRatioByExpanding,

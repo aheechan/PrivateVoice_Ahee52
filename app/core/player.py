@@ -74,6 +74,10 @@ class Player:
         self.dump = None          # 调试：把实际送出的音频写成原始 float32
 
     # -- 设备 ----------------------------------------------------------
+    def set_gap_ms(self, ms: int) -> None:
+        self.gap_ms = max(0, int(ms))
+        self.gap = np.zeros(int(self.samplerate * self.gap_ms / 1000), np.float32)
+
     def set_device(self, device: int | None) -> None:
         self.device = device
 

@@ -297,6 +297,13 @@ class AquaTTSEngine(TTSEngine):
             "sample_steps": self.cfg.get("sample_steps", 4),
             "super_sampling": False,
         }
+        # 允许调用方按角色覆盖：speed -> speed_factor，其余同名直传
+        if "speed" in kwargs:
+            inputs["speed_factor"] = float(kwargs["speed"])
+        for key in ("top_k", "top_p", "temperature", "sample_steps",
+                    "text_split_method", "seed", "fragment_interval"):
+            if key in kwargs and kwargs[key] is not None:
+                inputs[key] = kwargs[key]
         inputs.update({k: v for k, v in kwargs.items() if k in inputs})
         t0 = time.perf_counter()
         first = True

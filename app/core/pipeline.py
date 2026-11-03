@@ -215,6 +215,16 @@ class Pipeline:
         self.character = character
         self._emit("info", text=f"已切换到角色：{character.name}")
 
+    def _voice_params(self) -> dict[str, Any]:
+        """角色页里设置的音色/节奏参数（没设置就用全局默认）。"""
+        ch = self.character
+        v = (ch.voice if ch else {}) or {}
+        out: dict[str, Any] = {}
+        for key in ("speed", "top_k", "temperature", "sample_steps"):
+            if v.get(key) is not None:
+                out[key] = v[key]
+        return out
+
     def _base_engine(self) -> TTSEngine | None:
         """基础音色（s1v3 + s2Gv4，不带 LoRA）：角色音色坏了时的兜底。"""
         if getattr(self, "_base_tts", None) is not None:
@@ -585,6 +595,11 @@ class Pipeline:
         ch = self.character
         m = TurnMetrics(char_id=ch.id if ch else "",
                         t_press=self._t_press, t_release=self._t_release)
+        try:
+            v = (ch.voice if ch else {}) or {}
+            self.player.set_gap_ms(int(v.get("sentence_gap_ms", 130)))
+        except Exception:
+            pass
         self._turn_audio = []
         self._web_sources = []
         cancel = self._cancel
@@ -767,7 +782,8 @@ class Pipeline:
         try:
             with self._tts_lock:
                 engine = self._ensure_tts()
-                gen = engine.synthesize_stream(text, ref, ref_text, **(params or {}))
+                merged = {**self._voice_params(), **(params or {})}
+                gen = engine.synthesize_stream(text, ref, ref_text, **merged)
                 for chunk in gen:
                     if cancel is not None and cancel.is_set():
                         return None
@@ -842,7 +858,8 @@ class Pipeline:
                 with self._tts_lock:
                     engine = self._ensure_tts()
                     self._set_state(State.SPEAKING, text[:20])
-                    gen = engine.synthesize_stream(text, ref, ref_text)
+                    gen = engine.synthesize_stream(text, ref, ref_text,
+                                                   **self._voice_params())
                     try:
                         for chunk in gen:
                             if self._cancel.is_set():
@@ -880,9 +897,12 @@ class Pipeline:
                     _interj = set("嗯哦唔唉啊诶欸呀哈咦哎噢喔")
                     if text and len(text) <= 3 and all(
                             ch in _interj or ch in "，。…、,.!?~ " for ch in text):
-                        if data.size / sr_out > 1.2:
-                            self._emit("info", text=f"语气词过长（{data.size/sr_out:.1f}s），已收短")
-                            data = data[: int(1.2 * sr_out)]
+                        _cap_s = float((self.character.voice or {}).get(
+                            "interjection_max_sec", 1.2))
+                        if data.size / sr_out > _cap_s:
+                            self._emit("info",
+                                       text=f"语气词过长（{data.size/sr_out:.1f}s），已收短")
+                            data = data[: int(_cap_s * sr_out)]
                     per_char = float(self.config.get("tts.max_sec_per_char", 0.8))
                     # 基础音色（默认音色）语速更慢，再放宽一些，避免频繁触发"偏长"重试
                     if str((self.character.voice or {}).get("mode", "")) == "base":
