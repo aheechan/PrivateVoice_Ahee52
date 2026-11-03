@@ -876,8 +876,11 @@ class Pipeline:
                     data = _trim_edges(data, sr_out)
                     # 异常延音保护：v4 偶发把语气词拖长/重复（实测 11s），
                     # 按字数估个上限截断，免得一句话卡住半天。
-                    per_char = float(self.config.get("tts.max_sec_per_char", 0.55))
-                    cap = per_char * max(4, len(text)) + 1.0
+                    per_char = float(self.config.get("tts.max_sec_per_char", 0.8))
+                    # 基础音色（默认音色）语速更慢，再放宽一些，避免频繁触发"偏长"重试
+                    if str((self.character.voice or {}).get("mode", "")) == "base":
+                        per_char = max(per_char, 1.0)
+                    cap = per_char * max(4, len(text)) + 1.5
                     peak = float(np.max(np.abs(data))) if data.size else 0.0
                     alt_params = [
                         {"seed": int(time.time() * 1000) % 100000},
@@ -927,7 +930,7 @@ class Pipeline:
                             text, ref, ref_text,
                             {"top_k": int(self.config.get("tts.retry_top_k", 15)),
                              "temperature": float(self.config.get("tts.retry_temperature", 0.7))},
-                            cancel)
+                            self._cancel)
                         if alt is not None and 0 < alt[0].size < buf and \
                                 alt[0].size / alt[1] < data.size / sr_out:
                             data, sr_out = alt
