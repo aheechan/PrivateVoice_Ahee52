@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import os
+import random
 import re
 import sys
 import time
@@ -53,7 +54,20 @@ class TTSEngine(ABC):
 
     def synthesize_file(self, text: str, dest: str | Path, reference: str,
                         reference_text: str, **kwargs: Any) -> Path:
-        samples, sr = self.synthesize(text, reference, reference_text, **kwargs)
+        import random
+
+        import numpy as np
+
+        best = None
+        for attempt in range(4):
+            samples, sr = self.synthesize(text, reference, reference_text, **kwargs)
+            peak = float(np.max(np.abs(samples))) if samples.size else 0.0
+            if best is None or peak > best[2]:
+                best = (samples, sr, peak)
+            if peak >= 0.02:
+                break
+            kwargs["seed"] = random.randint(1, 99999)
+        samples, sr, _peak = best
         return audio_qc.save_wav(dest, samples, sr, subtype="PCM_16")
 
     @property
@@ -277,7 +291,7 @@ class AquaTTSEngine(TTSEngine):
             "streaming_mode": True,
             "return_fragment": True,
             "fragment_interval": self.cfg.get("fragment_interval", 0.3),
-            "seed": 42,
+            "seed": int(kwargs.get("seed", random.randint(1, 99999))),
             "parallel_infer": True,
             "repetition_penalty": 1.35,
             "sample_steps": self.cfg.get("sample_steps", 4),

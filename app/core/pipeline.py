@@ -27,7 +27,7 @@ from .history import HistoryStore, system_prompt
 from .llm import LLMClient, LLMError
 from .metrics import MetricsStore, TurnMetrics
 from .player import Player
-from .tts import TTSEngine, make_engine
+from .tts import TTSEngine, detect_lang, make_engine
 
 SENT_END = "。！？…!?."
 SENT_SOFT = "，、；,;"
@@ -51,6 +51,12 @@ class SentenceSplitter:
     def __init__(self, min_chars: int = 6, max_chars: int = 40):
         self.min_chars = min_chars
         self.max_chars = max_chars
+
+    @staticmethod
+    def _limit(text: str) -> int:
+        # 英文按字符数会更短，放宽上限，避免一句话被切成碎片
+        latin = len(re.findall(r"[A-Za-z]", text))
+        return 90 if latin > len(text) * 0.5 else 40
         self.buf = ""
 
     def feed(self, text: str) -> list[str]:
@@ -63,7 +69,7 @@ class SentenceSplitter:
             elif ch in SENT_SOFT and len(self.buf.strip()) >= self.min_chars:
                 out.append(self.buf)
                 self.buf = ""
-            elif len(self.buf) >= self.max_chars:
+            elif len(self.buf) >= self._limit(self.buf):
                 out.append(self.buf)
                 self.buf = ""
         return out
@@ -86,7 +92,11 @@ def clean_for_tts(text: str) -> str:
     s = _BRACKET.sub("", s)
     s = _EMOJI.sub("", s)
     s = s.replace("“", "").replace("”", "").replace("\"", "")
-    s = _SPACE.sub("", s)
+    # 英文单词之间的空格必须保留，否则会被读成一串连写
+    s = _SPACE.sub(" ", s)
+    s = re.sub(r"\s+(?=[，。！？；：、）】》])", "", s)
+    s = re.sub(r"(?<=[，。！？；：、（【《])[ \t]+", "", s)
+    s = re.sub(r"(?<=[\u4e00-\u9fff]) (?=[\u4e00-\u9fff])", "", s)
     return s.strip()
 
 
@@ -560,7 +570,8 @@ class Pipeline:
                 for delta in self.llm.chat_stream(
                         self._messages(user_text),
                         temperature=float((ch.llm or {}).get("temperature", 0.8)),
-                        max_tokens=int((ch.llm or {}).get("max_tokens", 320)),
+                        max_tokens=(768 if self._web_sources else
+                                    int((ch.llm or {}).get("max_tokens", 320))),
                         sampling=self._style(),
                         cancel=cancel):
                     if cancel.is_set():
@@ -719,6 +730,7 @@ class Pipeline:
         # 先攒够 2 句再开播：合成比实时慢，只攒 1 句的话第二句必然等不到位
         held: list[tuple[np.ndarray, int]] = []
         play_started = False
+        last_lang = ""
 
         def flush_held() -> None:
             nonlocal play_started
@@ -730,7 +742,12 @@ class Pipeline:
             play_started = True
 
         def offer(data: np.ndarray, sr: int) -> None:
-            nonlocal play_started
+            nonlocal play_started, last_lang
+            lang = detect_lang(text) if text else "zh"
+            if last_lang and lang != last_lang:
+                # 换语言时插 220ms 停顿，听起来更自然
+                held.append((np.zeros(int(sr * 0.22), np.float32), sr))
+            last_lang = lang
             held.append((data, sr))
             if play_started or len(held) >= 2:
                 flush_held()
@@ -797,6 +814,25 @@ class Pipeline:
                     # 按字数估个上限截断，免得一句话卡住半天。
                     per_char = float(self.config.get("tts.max_sec_per_char", 0.55))
                     cap = per_char * max(4, len(text)) + 1.0
+                    peak = float(np.max(np.abs(data))) if data.size else 0.0
+                    for attempt in range(3):
+                        if peak >= 0.02:
+                            break
+                        # 模型偶发把句子合成成近乎静音：换随机种子多次重试
+                        self._emit("info",
+                                   text=f"TTS 输出过轻（{peak:.3f}），第 {attempt+1} 次重试")
+                        alt = self._synth_once(
+                            text, ref, ref_text,
+                            {"seed": int(time.time() * 1000 + attempt * 7919) % 100000},
+                            cancel)
+                        if alt is not None and alt[0].size:
+                            cand_peak = float(np.max(np.abs(alt[0])))
+                            if cand_peak > peak:
+                                data, sr_out, peak = alt[0], alt[1], cand_peak
+                    if peak < 0.02:
+                        self._emit("error", text=f"这句合成不出声音，已跳过：{text[:12]}…")
+                        failed += 1
+                        continue
                     if data.size / sr_out > cap:
                         # 先用更"放开"的采样重试一次，实在不行才截断
                         self._emit("info",

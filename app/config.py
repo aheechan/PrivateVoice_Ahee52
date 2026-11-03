@@ -178,7 +178,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "sentence_fade_in_ms": 12.0,
         "sentence_fade_out_ms": 25.0,
         "sentence_crossfade_ms": 20.0,
-        "speed": 0.92,
+        "speed": 1.0,
         "sample_steps": 4,
         "chunk_size_seconds": 0.25,
         "enable_cuda_graph": True,
