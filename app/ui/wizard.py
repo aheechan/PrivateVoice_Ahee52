@@ -413,7 +413,8 @@ class QcPage(QWizardPage):
         self.table.setRowCount(len(result.checks))
         for r, c in enumerate(result.checks):
             self.table.setItem(r, 0, QTableWidgetItem(c.label))
-            level_text = {"ok": "通过", "warn": "警告", "error": "不通过",
+            # 质检只做提示，不拦人：所有层级都显示为“通过/提示”
+            level_text = {"ok": "通过", "warn": "提示", "error": "提示",
                           "skip": "跳过"}[c.level]
             item = QTableWidgetItem(level_text)
             item.setForeground(QColor({"ok": "#2d7d46", "warn": "#b58900",
@@ -424,15 +425,15 @@ class QcPage(QWizardPage):
                 self.table.item(r, 2).setToolTip(c.advice)
         self.table.resizeColumnsToContents()
         self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
-        summary = {"ok": "全部通过", "warn": "有警告，可以继续",
-                   "error": "有不合格项，修好再继续"}[result.status]
+        summary = {"ok": "全部通过", "warn": "有提示项，可以继续",
+                   "error": "有提示项，仍可继续（不影响训练流程）"}[result.status]
         self.status.setText(
             f"{summary} · 时长 {result.duration_sec:.1f}s · 响度 {result.lufs} LUFS · "
             f"信噪比 {result.snr_db} dB")
 
     def isComplete(self) -> bool:
-        qc = self.wiz.state.get("qc")
-        return bool(qc and qc.ok)
+        # 只要检测跑过就允许下一步：质量问题只提示，不阻断用户
+        return bool(self.wiz.state.get("qc"))
 
 
 # ---------------------------------------------------------------------------
