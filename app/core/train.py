@@ -690,7 +690,7 @@ class TrainingRunner:
                 y, sr = audio_qc.decode(str(src))
                 y, _before, _after = audio_qc.normalize_loudness(
                     y, sr, target_lufs=-20.0, peak_dbtp=-2.0)
-                audio_qc.save_wav(ref_path, y, sr, subtype="PCM_16")
+                audio_qc.save_wav_atomic(ref_path, y, sr, subtype="PCM_16")
                 self._verify_reference(ref_path, Path(src))
             except Exception:
                 shutil.copyfile(src, ref_path)
@@ -743,7 +743,7 @@ class TrainingRunner:
             clips = sorted((self.dataset_dir / "clips").glob("*.wav"))
             if clips:
                 y, sr = audio_qc.decode(str(clips[0]))
-                audio_qc.save_wav(dest, y, sr, subtype="PCM_16")
+                audio_qc.save_wav_atomic(dest, y, sr, subtype="PCM_16")
                 self.emit(TrainEvent(stage="reference", level="warn",
                                      message=f"已用训练片段 {clips[0].name} 重建参考音频"))
         except Exception as exc:  # noqa: BLE001

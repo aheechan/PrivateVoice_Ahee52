@@ -255,7 +255,7 @@ class Pipeline:
             if clips:
                 y, sr = audio_qc.decode(str(clips[0]))
                 fixed = ch_dir / "reference.wav"
-                audio_qc.save_wav(fixed, y, sr, subtype="PCM_16")
+                audio_qc.save_wav_atomic(fixed, y, sr, subtype="PCM_16")
                 self._emit("info", text="参考音频已损坏，已用训练片段重建")
                 return str(fixed)
         except Exception as exc:  # noqa: BLE001

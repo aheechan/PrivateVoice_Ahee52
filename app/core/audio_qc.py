@@ -551,6 +551,38 @@ def save_wav(path: str | Path, samples: np.ndarray, sr: int,
     return path
 
 
+def save_wav_atomic(path: str | Path, samples: np.ndarray, sr: int,
+                    subtype: str = "PCM_16") -> Path:
+    """原子写 wav：先写同目录 .tmp，fsync 后 os.replace 换名。
+
+    直接覆盖写有两个风险：写的过程中别的线程/进程读到半截文件（libsndfile 会报
+    "System error"），以及杀毒软件扫描导致写入中断留下 0 字节文件。
+    """
+    import os
+    import tempfile
+
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=path.stem + "_",
+                               suffix=".wav.tmp")
+    os.close(fd)
+    try:
+        sf.write(tmp, np.asarray(samples, dtype=np.float32), sr,
+                 subtype=subtype, format="WAV")
+        # 校验能读回来再替换
+        with sf.SoundFile(tmp) as f:
+            if f.frames <= 0:
+                raise RuntimeError("写入的文件为空")
+        os.replace(tmp, path)
+    finally:
+        if os.path.exists(tmp):
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+    return path
+
+
 def fade(x: np.ndarray, sr: int, ms: float = 10.0) -> np.ndarray:
     n = min(int(sr * ms / 1000.0), x.size // 2)
     if n <= 0:
@@ -581,5 +613,5 @@ __all__ = [
     "normalize_loudness", "integrated_lufs", "true_peak_dbfs", "limit_peak",
     "frame_rms_db", "estimate_snr", "silence_ratio", "clip_ratio",
     "estimate_speakers", "process_to_48k", "run_qc", "save_qc", "load_qc",
-    "save_wav", "fade",
+    "save_wav", "save_wav_atomic", "fade",
 ]
