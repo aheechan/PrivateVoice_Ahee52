@@ -931,9 +931,12 @@ class Pipeline:
                             {"top_k": int(self.config.get("tts.retry_top_k", 15)),
                              "temperature": float(self.config.get("tts.retry_temperature", 0.7))},
                             self._cancel)
-                        if alt is not None and 0 < alt[0].size < buf and \
-                                alt[0].size / alt[1] < data.size / sr_out:
-                            data, sr_out = alt
+                        if alt is not None and alt[0].size:
+                            alt_dur = alt[0].size / alt[1]
+                            cur_dur = data.size / sr_out
+                            # 只接受"更短但内容量接近"的重试；掉太多内容宁可用原句
+                            if 0.55 * cur_dur <= alt_dur < cur_dur:
+                                data, sr_out = alt
                     if data.size / sr_out > cap * 1.3:
                         self._emit("info",
                                    text=f"TTS 仍偏长（{data.size/sr_out:.1f}s），截断到 {cap:.1f}s")
