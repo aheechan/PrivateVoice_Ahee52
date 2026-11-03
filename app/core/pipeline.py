@@ -876,6 +876,13 @@ class Pipeline:
                     data = _trim_edges(data, sr_out)
                     # 异常延音保护：v4 偶发把语气词拖长/重复（实测 11s），
                     # 按字数估个上限截断，免得一句话卡住半天。
+                    # 纯语气词（嗯/哦/唔/唉/啊…）很容易被拖成长音，单独限长
+                    _interj = set("嗯哦唔唉啊诶欸呀哈咦哎噢喔")
+                    if text and len(text) <= 3 and all(
+                            ch in _interj or ch in "，。…、,.!?~ " for ch in text):
+                        if data.size / sr_out > 1.2:
+                            self._emit("info", text=f"语气词过长（{data.size/sr_out:.1f}s），已收短")
+                            data = data[: int(1.2 * sr_out)]
                     per_char = float(self.config.get("tts.max_sec_per_char", 0.8))
                     # 基础音色（默认音色）语速更慢，再放宽一些，避免频繁触发"偏长"重试
                     if str((self.character.voice or {}).get("mode", "")) == "base":

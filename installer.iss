@@ -3,7 +3,7 @@
 ; 说明：包体约 12.6GB，为了构建速度这里不压缩；安装时直接复制。
 
 #define MyAppName "Ahee52_PrivateVoice-ASR-cn-beta"
-#define MyAppVersion "beta-3.3"
+#define MyAppVersion "beta-3.4"
 #define MyAppPublisher "VoiceLab"
 #define MyAppExeName "Ahee52_PrivateVoice-ASR-cn-beta.exe"
 
@@ -16,7 +16,7 @@ DefaultDirName={autopf}\Ahee52_PrivateVoice
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 OutputDir=C:\VoiceLab\dist\installer
-OutputBaseFilename=Ahee52_PrivateVoice_beta3_3_Setup
+OutputBaseFilename=Ahee52_PrivateVoice_beta3_4_Setup
 SetupIconFile=C:\VoiceLab\dist\app.ico
 UninstallDisplayIcon={app}\app.ico
 Compression=none
