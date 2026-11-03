@@ -708,7 +708,7 @@ class TrainingRunner:
         return ref_path
 
     def _sanity_check(self, s1: Path, s2: Path, ref_path: Path | None) -> None:
-        """训练完立刻合成一句，确认新权重真的能出声（避免"训练完没声音"）。"""
+        """训练完连合三句，确认新权重真的能出声（避免"训练完没声音"）。"""
         try:
             import numpy as np
 
@@ -724,27 +724,34 @@ class TrainingRunner:
                 ref_text = txt.read_text(encoding="utf-8").strip()
             engine = make_engine(self.config)
             engine.load(str(s1), str(s2))
-            parts = []
-            sr = 48000
-            for c in engine.synthesize_stream("你好，我是你的新伙伴。", str(ref_path),
-                                              ref_text):
-                parts.append(np.asarray(c.samples, np.float32))
-                sr = c.samplerate
+            texts = ["你好，我是你的新伙伴。", "今天过得怎么样？", "那就早点休息吧。"]
+            peaks: list[float] = []
+            for text in texts:
+                parts, sr = [], 48000
+                for c in engine.synthesize_stream(text, str(ref_path), ref_text):
+                    parts.append(np.asarray(c.samples, np.float32))
+                    sr = c.samplerate
+                x = np.concatenate(parts) if parts else np.zeros(0, np.float32)
+                peaks.append(float(np.max(np.abs(x))) if x.size else 0.0)
             engine.unload()
-            if not parts:
-                raise RuntimeError("没有生成任何音频")
-            x = np.concatenate(parts)
-            peak = float(np.max(np.abs(x))) if x.size else 0.0
-            rms = float(np.sqrt(np.mean(x ** 2))) if x.size else 0.0
-            self.emit(TrainEvent(
-                stage="done", level="ok" if peak > 0.02 else "warn",
-                message=(f"自检：合成 {x.size/sr:.2f}s，峰值 {peak:.2f}，RMS {rms:.3f}"
-                         + ("" if peak > 0.02 else "（音量异常偏低，请检查素材是否太轻/太短）"))))
+            good = sum(1 for p in peaks if p >= 0.02)
+            detail = " / ".join(f"{p:.2f}" for p in peaks)
+            if good == len(peaks):
+                self.emit(TrainEvent(stage="done", level="ok",
+                                     message=f"自检：3 句全部出声（峰值 {detail}）"))
+            elif good >= 2:
+                self.emit(TrainEvent(stage="done", level="warn",
+                                     message=(f"自检：3 句里 {good} 句出声（峰值 {detail}），"
+                                              "偶发静音会自动重试")))
+            else:
+                self.emit(TrainEvent(stage="done", level="error",
+                                     message=(f"自检失败：3 句只有 {good} 句出声（峰值 {detail}）。"
+                                              "这个角色大概率不可用，建议换素材重训"
+                                              "（安静环境、离麦 15-20cm、关降噪）")))
         except Exception as exc:  # noqa: BLE001
             self.emit(TrainEvent(stage="done", level="warn",
                                  message=f"自检合成失败：{exc}"))
 
-    # -- 工具 ----------------------------------------------------------
     @staticmethod
     def _expect(code: int, what: str) -> None:
         if code != 0:

@@ -817,16 +817,20 @@ class Pipeline:
                     per_char = float(self.config.get("tts.max_sec_per_char", 0.55))
                     cap = per_char * max(4, len(text)) + 1.0
                     peak = float(np.max(np.abs(data))) if data.size else 0.0
-                    for attempt in range(3):
+                    alt_params = [
+                        {"seed": int(time.time() * 1000) % 100000},
+                        {"seed": int(time.time() * 1000 + 7919) % 100000,
+                         "sample_steps": 8, "top_k": 15, "temperature": 0.7},
+                        {"seed": int(time.time() * 1000 + 15887) % 100000,
+                         "sample_steps": 4, "top_k": 10, "temperature": 0.8},
+                    ]
+                    for attempt, extra in enumerate(alt_params):
                         if peak >= 0.02:
                             break
-                        # 模型偶发把句子合成成近乎静音：换随机种子多次重试
                         self._emit("info",
-                                   text=f"TTS 输出过轻（{peak:.3f}），第 {attempt+1} 次重试")
-                        alt = self._synth_once(
-                            text, ref, ref_text,
-                            {"seed": int(time.time() * 1000 + attempt * 7919) % 100000},
-                            cancel)
+                                   text=f"TTS 输出过轻（{peak:.3f}），第 {attempt+1} 次换参重试")
+                        alt = self._synth_once(text, ref, ref_text, extra,
+                                               self._cancel)
                         if alt is not None and alt[0].size:
                             cand_peak = float(np.max(np.abs(alt[0])))
                             if cand_peak > peak:
