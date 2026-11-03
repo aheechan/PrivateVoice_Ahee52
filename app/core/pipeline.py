@@ -51,13 +51,13 @@ class SentenceSplitter:
     def __init__(self, min_chars: int = 6, max_chars: int = 40):
         self.min_chars = min_chars
         self.max_chars = max_chars
+        self.buf = ""
 
     @staticmethod
     def _limit(text: str) -> int:
         # 英文按字符数会更短，放宽上限，避免一句话被切成碎片
         latin = len(re.findall(r"[A-Za-z]", text))
         return 90 if latin > len(text) * 0.5 else 40
-        self.buf = ""
 
     def feed(self, text: str) -> list[str]:
         out: list[str] = []
@@ -155,6 +155,7 @@ class Pipeline:
         self.recorder = audio_io.Recorder(device=config.audio.get("input_device"))
         self._tts: TTSEngine | None = None
         self._turn_audio: list[tuple[np.ndarray, int]] = []
+        self._web_sources: list[str] = []
         self.style_id = str(config.get("llm.default_style", "gentle"))
         self._tts_key: tuple[str, str] = ("", "")
 
@@ -523,6 +524,7 @@ class Pipeline:
         m = TurnMetrics(char_id=ch.id if ch else "",
                         t_press=self._t_press, t_release=self._t_release)
         self._turn_audio = []
+        self._web_sources = []
         cancel = self._cancel
         try:
             # ---- ASR ----
