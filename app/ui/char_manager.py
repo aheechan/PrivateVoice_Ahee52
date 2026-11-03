@@ -210,6 +210,13 @@ class CharacterManager(QDialog):
         self.info = QLabel("—")
         self.info.setWordWrap(True)
         self.info.setStyleSheet("color:#666;font-size:12px;")
+        for w in (self.f_name, self.f_greeting, self.f_temp, self.f_max_tokens,
+                  self.f_speed, self.f_gap, self.f_vtemp, self.f_topk,
+                  self.f_steps, self.f_interj):
+            sig = getattr(w, "valueChanged", None) or getattr(w, "textChanged", None)
+            if sig is not None:
+                sig.connect(self._mark_dirty)
+        self.f_persona.textChanged.connect(self._mark_dirty)
         v.addWidget(self.info)
 
         row = QHBoxLayout()
@@ -276,7 +283,7 @@ class CharacterManager(QDialog):
         llm = c.llm or {}
         self.f_temp.setValue(float(llm.get("temperature", 0.8)))
         self.f_max_tokens.setValue(int(llm.get("max_tokens", 160)))
-        voice = ch.voice or {}
+        voice = c.voice or {}
         self.f_speed.setValue(float(voice.get("speed", 0.96)))
         self.f_gap.setValue(int(voice.get("sentence_gap_ms", 130)))
         self.f_vtemp.setValue(float(voice.get("temperature", 0.6)))
@@ -301,6 +308,11 @@ class CharacterManager(QDialog):
         self.btn_revert.setEnabled(True)
 
     # -- 动作 ----------------------------------------------------------
+    def _mark_dirty(self, *_args) -> None:
+        if self._current_id:
+            self.btn_save.setEnabled(True)
+            self.btn_revert.setEnabled(True)
+
     def _save(self) -> None:
         if not self._current_id:
             return
@@ -317,6 +329,16 @@ class CharacterManager(QDialog):
         c.persona = self.f_persona.toPlainText().strip()
         c.llm = {"temperature": round(self.f_temp.value(), 2),
                  "max_tokens": int(self.f_max_tokens.value())}
+        voice = dict(c.voice or {})
+        voice.update({
+            "speed": round(self.f_speed.value(), 2),
+            "sentence_gap_ms": int(self.f_gap.value()),
+            "temperature": round(self.f_vtemp.value(), 2),
+            "top_k": int(self.f_topk.value()),
+            "sample_steps": int(self.f_steps.value()),
+            "interjection_max_sec": round(self.f_interj.value(), 2),
+        })
+        c.voice = voice
         self.store.save(c)
         self.refresh()
         self.changed.emit()

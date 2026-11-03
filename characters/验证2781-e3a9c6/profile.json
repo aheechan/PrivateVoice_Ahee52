@@ -15,7 +15,13 @@
     "gpt_ckpt": "C:\\VoiceLab\\GPT-SoVITS\\GPT_weights_v3\\vlab_验证2781-e10.ckpt",
     "sovits_ckpt": "C:\\VoiceLab\\GPT-SoVITS\\SoVITS_weights_v4\\vlab_验证2781_e10_s130_l48.pth",
     "reference": "reference.wav",
-    "reference_text": "你刚才看是放手上面还是放下来歪哦，来喽，保一条吧，直接开始就可以了啊。"
+    "reference_text": "你刚才看是放手上面还是放下来歪哦，来喽，保一条吧，直接开始就可以了啊。",
+    "speed": 0.96,
+    "sentence_gap_ms": 130,
+    "temperature": 0.6,
+    "top_k": 5,
+    "sample_steps": 4,
+    "interjection_max_sec": 1.2
   },
   "dataset": {
     "duration_sec": 0.0,
