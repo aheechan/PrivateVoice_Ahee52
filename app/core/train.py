@@ -620,9 +620,13 @@ class TrainingRunner:
         batch = self.plan.batch
         while True:
             attempt += 1
-            s2_cfg = make_s2_config(self.work, self.exp, self.plan, self.project_root,
-                                    grad_ckpt=(self.plan.vram_bucket <= 16),
-                                    version=self.s2_version)
+            rank = self._auto_tune_rank(
+                self.store.dir_of(self.cid) / "reference.wav")
+            s2_cfg = make_s2_config(
+                self.work, self.exp, self.plan, self.project_root,
+                lora_rank=rank,
+                grad_ckpt=(self.plan.vram_bucket <= 16),
+                version=self.s2_version)
             # 覆盖 batch（config 里已写，这里保持一致）
             data = json.loads(s2_cfg.read_text(encoding="utf-8"))
             data["train"]["batch_size"] = batch
@@ -687,6 +691,7 @@ class TrainingRunner:
                 y, _before, _after = audio_qc.normalize_loudness(
                     y, sr, target_lufs=-20.0, peak_dbtp=-2.0)
                 audio_qc.save_wav(ref_path, y, sr, subtype="PCM_16")
+                self._verify_reference(ref_path, Path(src))
             except Exception:
                 shutil.copyfile(src, ref_path)
             (chardir / "reference.txt").write_text(text.strip() + "\n", encoding="utf-8")
@@ -706,6 +711,88 @@ class TrainingRunner:
         self._cleanup_temp()
         self._sanity_check(s1, s2, ref_path)
         return ref_path
+
+    def _verify_reference(self, dest: Path, fallback: Path | None = None) -> None:
+        """参考音频写完后必须能被解码，否则 TTS 会静默失败。"""
+        from app.core import audio_qc
+
+        try:
+            y, sr = audio_qc.decode(str(dest))
+            if y.size == 0 or sr <= 0:
+                raise RuntimeError("解码为空")
+            self.emit(TrainEvent(stage="reference", level="info",
+                                 message=(f"参考音频校验通过：{y.shape[0]} 采样 @ {sr}Hz")))
+            return
+        except Exception as exc:  # noqa: BLE001
+            self.emit(TrainEvent(stage="reference", level="warn",
+                                 message=f"参考音频校验失败（{exc}），尝试修复"))
+        # 修复 1：从数据集里重新拷一段原始片段
+        if fallback is not None and Path(fallback).exists():
+            try:
+                import shutil
+
+                shutil.copyfile(fallback, dest)
+                audio_qc.decode(str(dest))
+                self.emit(TrainEvent(stage="reference", level="warn",
+                                     message=f"已用 {Path(fallback).name} 重新生成参考音频"))
+                return
+            except Exception:
+                pass
+        # 修复 2：用第一段训练片段重建
+        try:
+            clips = sorted((self.dataset_dir / "clips").glob("*.wav"))
+            if clips:
+                y, sr = audio_qc.decode(str(clips[0]))
+                audio_qc.save_wav(dest, y, sr, subtype="PCM_16")
+                self.emit(TrainEvent(stage="reference", level="warn",
+                                     message=f"已用训练片段 {clips[0].name} 重建参考音频"))
+        except Exception as exc:  # noqa: BLE001
+            self.emit(TrainEvent(stage="reference", level="error",
+                                 message=f"参考音频修复失败：{exc}"))
+
+    def _auto_tune_rank(self, ref_path: Path | None) -> int:
+        """按参考音频的基频与高频占比微调 LoRA rank。
+
+        经验：低沉男声（F0 低）与非常闷的素材（4k 以上极少）更容易学不出声音，
+        给更大的 rank 更容易拟合。默认 32，命中条件时升到 48。
+        """
+        base = int(self.config.get("training.lora_rank", 32))
+        target = Path(ref_path) if ref_path else None
+        if target is None or not target.exists():
+            # 训练阶段 reference.wav 还没写出来，就从数据集里挑一段当样本
+            clips = sorted((self.dataset_dir / "clips").glob("*.wav"))
+            if not clips:
+                return base
+            target = clips[0]
+        try:
+            import numpy as np
+
+            from app.core import audio_qc
+
+            y, sr = audio_qc.decode(str(target))
+            y = audio_qc.to_mono(y)
+            if y.size < sr:
+                return base
+            spec = np.abs(np.fft.rfft(y[: 1 << 16].astype(np.float64))) ** 2
+            freqs = np.fft.rfftfreq(1 << 16, 1 / sr)
+            total = spec.sum() + 1e-12
+            hf_ratio = float(spec[freqs >= 4000].sum() / total)
+            # 基频粗估：低频段能量峰
+            band = (freqs >= 60) & (freqs <= 350)
+            f0 = float(freqs[band][int(np.argmax(spec[band]))]) if band.any() else 0.0
+            rank = base
+            if f0 and f0 < 130:          # 低沉男声
+                rank = max(base, 48)
+            if hf_ratio < 0.02:          # 素材很闷
+                rank = max(rank, 48)
+            if rank != base:
+                self.emit(TrainEvent(
+                    stage="prepare", level="warn",
+                    message=(f"检测到低沉/偏闷素材（F0≈{f0:.0f}Hz，4k+ 占比 {hf_ratio*100:.1f}%），"
+                             f"LoRA rank 从 {base} 提升到 {rank}")))
+            return rank
+        except Exception:
+            return base
 
     def _sanity_check(self, s1: Path, s2: Path, ref_path: Path | None) -> None:
         """训练完连合三句，确认新权重真的能出声（避免"训练完没声音"）。"""

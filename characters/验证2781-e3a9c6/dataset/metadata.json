@@ -1,0 +1,143 @@
+{
+  "character_id": "格雷丝-748caf",
+  "clips": [
+    {
+      "index": 1,
+      "file": "clips/0001.wav",
+      "duration": 3.97,
+      "snr": 54.95,
+      "peak": -5.34,
+      "lufs": -22.61,
+      "asr_conf": 1.0,
+      "flags": [],
+      "status": "good",
+      "text": "我再过一遍最后的吧，因为你后面可能不是很好垫画面，是吗？",
+      "text_raw": "我再过一遍最后的吧，因为你后面可能不是很好垫画面，是吗？"
+    },
+    {
+      "index": 2,
+      "file": "clips/0002.wav",
+      "duration": 6.64,
+      "snr": 56.62,
+      "peak": -4.08,
+      "lufs": -23.69,
+      "asr_conf": 1.0,
+      "flags": [],
+      "status": "good",
+      "text": "伊丽莎白斯坦顿是吗？对是什么？那是广，会不会反？这个是连读的是吗？对，那那。",
+      "text_raw": "伊丽莎白斯坦顿是吗？对是什么？那是广，会不会反？这个是连读的是吗？对，那那。"
+    },
+    {
+      "index": 3,
+      "file": "clips/0003.wav",
+      "duration": 2.56,
+      "snr": 70.95,
+      "peak": -4.39,
+      "lufs": -22.46,
+      "asr_conf": 1.0,
+      "flags": [],
+      "status": "good",
+      "text": "应该怎么读？玛丽沃斯通克。",
+      "text_raw": "应该怎么读？玛丽沃斯通克。"
+    },
+    {
+      "index": 4,
+      "file": "clips/0004.wav",
+      "duration": 4.86,
+      "snr": 22.42,
+      "peak": -5.31,
+      "lufs": -21.4,
+      "asr_conf": 1.0,
+      "flags": [
+        "snr"
+      ],
+      "status": "good",
+      "text": "他创办的什么东西？这个英文我不会念了，快帮我看一下。",
+      "text_raw": "他创办的什么东西？这个英文我不会念了，快帮我看一下。"
+    },
+    {
+      "index": 5,
+      "file": "clips/0005.wav",
+      "duration": 2.5,
+      "snr": 46.1,
+      "peak": -7.48,
+      "lufs": -22.72,
+      "asr_conf": 1.0,
+      "flags": [
+        "rate_slow"
+      ],
+      "status": "good",
+      "text": "啊，哦，他创办的。",
+      "text_raw": "啊，哦，他创办的。"
+    },
+    {
+      "index": 6,
+      "file": "clips/0006.wav",
+      "duration": 4.36,
+      "snr": 21.62,
+      "peak": -5.25,
+      "lufs": -22.62,
+      "asr_conf": 1.0,
+      "flags": [
+        "snr"
+      ],
+      "status": "good",
+      "text": "如果你喜欢今天的内容，请分享给你身边需要的朋友，让。",
+      "text_raw": "如果你喜欢今天的内容，请分享给你身边需要的朋友，让。"
+    },
+    {
+      "index": 7,
+      "file": "clips/0007.wav",
+      "duration": 4.84,
+      "snr": 32.64,
+      "peak": -4.0,
+      "lufs": -22.24,
+      "asr_conf": 1.0,
+      "flags": [],
+      "status": "good",
+      "text": "我们一起把这些美妙的沟通艺术传播开来。",
+      "text_raw": "我们一起把这些美妙的沟通艺术传播开来。"
+    },
+    {
+      "index": 8,
+      "file": "clips/0008.wav",
+      "duration": 2.4,
+      "snr": 65.02,
+      "peak": -8.27,
+      "lufs": -25.11,
+      "asr_conf": 1.0,
+      "flags": [],
+      "status": "good",
+      "text": "信用卡米拉了，应该没有什么大问题哦。",
+      "text_raw": "信用卡米拉了，应该没有什么大问题哦。"
+    },
+    {
+      "index": 9,
+      "file": "clips/0009.wav",
+      "duration": 3.56,
+      "snr": 42.03,
+      "peak": -7.84,
+      "lufs": -22.72,
+      "asr_conf": 1.0,
+      "flags": [],
+      "status": "good",
+      "text": "这是另外一个开头了，是吗？要报姓名哦，可以直接开始啦。",
+      "text_raw": "这是另外一个开头了，是吗？要报姓名哦，可以直接开始啦。"
+    },
+    {
+      "index": 10,
+      "file": "clips/0010.wav",
+      "duration": 6.115,
+      "snr": 70.1,
+      "peak": -8.2,
+      "lufs": -24.69,
+      "asr_conf": 1.0,
+      "flags": [],
+      "status": "good",
+      "text": "你刚才看是放手上面还是放下来歪哦，来喽，保一条吧，直接开始就可以了啊。",
+      "text_raw": "你刚才看是放手上面还是放下来歪哦，来喽，保一条吧，直接开始就可以了啊。"
+    }
+  ],
+  "count": 10,
+  "total_sec": 41.8
+}

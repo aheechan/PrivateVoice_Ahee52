@@ -235,6 +235,34 @@ class Pipeline:
             logger.warning("加载基础音色失败：%s", exc)
             return None
 
+    def _valid_reference(self, ref: str) -> str:
+        """参考音频损坏时自动修复（否则 TTS 会静默输出空白）。"""
+        from app.core import audio_qc
+
+        try:
+            y, sr = audio_qc.decode(ref)
+            if y.size > 0 and sr > 0:
+                return ref
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("参考音频损坏：%s（%s）", ref, exc)
+        ch = self.character
+        if ch is None:
+            return ref
+        ch_dir = self.store.dir_of(ch.id)
+        # 修复 1：用角色数据集里的第一段片段
+        try:
+            clips = sorted((ch_dir / "dataset" / "clips").glob("*.wav"))
+            if clips:
+                y, sr = audio_qc.decode(str(clips[0]))
+                fixed = ch_dir / "reference.wav"
+                audio_qc.save_wav(fixed, y, sr, subtype="PCM_16")
+                self._emit("info", text="参考音频已损坏，已用训练片段重建")
+                return str(fixed)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("重建参考音频失败：%s", exc)
+        self._emit("error", text="参考音频不可用，语音合成会失败，请重训该角色")
+        return ref
+
     def _ensure_tts(self) -> TTSEngine:
         with self._tts_lock:
             ch = self.character
@@ -318,8 +346,8 @@ class Pipeline:
             engine = self._ensure_tts()
             out["tts_load_s"] = round(time.perf_counter() - t1, 2)
             ch = self.character
-            ref = str(self.store.dir_of(ch.id) /
-                      (ch.voice.get("reference") or "reference.wav"))
+            ref = self._valid_reference(str(self.store.dir_of(ch.id) /
+                                            (ch.voice.get("reference") or "reference.wav")))
             t2 = time.perf_counter()
             with self._tts_lock:
                 for _ in engine.synthesize_stream("你好。", ref,
