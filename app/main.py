@@ -17,6 +17,12 @@ from PySide6.QtNetwork import QLocalServer, QLocalSocket
 from PySide6.QtWidgets import QApplication, QMessageBox, QSystemTrayIcon
 
 ROOT = Path(__file__).resolve().parents[1]
+# nltk 的 cmudict / 词性标注数据随包提供，必须在 nltk 被 import 之前设好
+import os as _os
+
+_nltk_dir = ROOT / "nltk_data"
+if _nltk_dir.exists():
+    _os.environ.setdefault("NLTK_DATA", str(_nltk_dir))
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
@@ -707,7 +713,7 @@ def main() -> int:
         log.info("已有实例在运行，提示用户看托盘")
         QMessageBox.information(
             None, APP_NAME,
-            "情感陪伴器已经在运行了。\n\n"
+            "Ahee52_PrivateVoice-ASR-cn-beta已经在运行了。\n\n"
             "它常驻在系统托盘（任务栏右下角，可能被折叠进“^”里）。\n"
             "右键托盘图标可以打开「角色管理」「设置」「诊断」。")
         return 0
@@ -764,7 +770,7 @@ def main() -> int:
 
     # 让用户知道它去哪儿了（Windows 默认会把新图标塞进溢出区）
     controller.tray.notify(
-        "情感陪伴器_v1 已启动",
+        "Ahee52_PrivateVoice-ASR-cn-beta 已启动",
         "图标在系统托盘（任务栏右下角，可能被折叠）。右键图标有菜单；"
         "按住 shift+a 说话。", 8000)
 

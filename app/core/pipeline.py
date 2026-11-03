@@ -483,6 +483,14 @@ class Pipeline:
             try:
                 from app.core import websearch
 
+                # 先说一句"稍等"，趁这句话合成/播放的时间去查资料
+                filler = str(self.config.get("web.filler", "稍等，让我查一下。"))
+                if filler and self._tts_queue is not None:
+                    try:
+                        self._tts_queue.put_nowait(filler)
+                    except Exception:
+                        pass
+
                 results = websearch.search(user_text, self.config)
                 if results:
                     sys_text += "\n\n" + websearch.format_context(results)

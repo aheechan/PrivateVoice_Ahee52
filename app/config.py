@@ -186,6 +186,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "text_language": "中文",
         "prompt_language": "中文",
         "device": "cuda",
+        "auto_lang": True,          # 按句子自动切 zh/en/ja/ko/yue 前端
         "disable_bigvgan_kernel": True,
         "preview_texts": [
             "今天有点累，不过见到你就好多了。",
@@ -216,6 +217,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "always": False,           # True=每轮都搜；False=只有像"查最新…"的话才搜
         "max_results": 4,
         "timeout_ms": 6000,
+        "filler": "稍等，让我查一下。",
     },
     "llm": {
         "history_turns": 12,
@@ -257,7 +259,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         ],
     },
     "player": {
-        "blocksize_ms": 50,
+        "blocksize_ms": 80,
         "sentence_gap_ms": 80,
         "limiter_dbtp": -1.0,
         "buffer_chunks": 64,

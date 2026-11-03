@@ -1,24 +1,24 @@
-; 情感陪伴器_v2 安装脚本（Inno Setup 6）——内置 GPT-SoVITS v4
+; Ahee52_PrivateVoice-ASR-cn-beta 安装脚本（Inno Setup 6）——内置 GPT-SoVITS v4
 ; 编译：ISCC.exe /Qp installer.iss
 ; 说明：包体约 12.6GB，为了构建速度这里不压缩；安装时直接复制。
 
-#define MyAppName "情感陪伴器_v2"
+#define MyAppName "Ahee52_PrivateVoice-ASR-cn-beta"
 #define MyAppVersion "2.0.0"
 #define MyAppPublisher "VoiceLab"
-#define MyAppExeName "情感陪伴器_v2.exe"
+#define MyAppExeName "Ahee52_PrivateVoice-ASR-cn-beta.exe"
 
 [Setup]
-AppId={{9F1C2B44-7C3A-4E7B-9C1D-2A6F5E8B0C31}
+AppId={{B7E4A1C9-52D3-4F18-9E06-3C8D1A7B5F42}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
-DefaultDirName={autopf}\VoiceCompanion_v2
+DefaultDirName={autopf}\Ahee52_PrivateVoice
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 OutputDir=C:\VoiceLab\dist\installer
-OutputBaseFilename=VoiceCompanion_v2_Setup
+OutputBaseFilename=Ahee52_PrivateVoice_Setup
 SetupIconFile=C:\VoiceLab\dist\app.ico
-UninstallDisplayIcon={app}\{#MyAppExeName}
+UninstallDisplayIcon={app}\app.ico
 Compression=none
 SolidCompression=no
 ; Windows 单个 exe 上限约 4.2GB，包体 9.5GB 必须分卷
@@ -38,7 +38,7 @@ Name: "chinese"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "创建桌面快捷方式"; GroupDescription: "快捷方式："
 
 [Files]
-Source: "C:\VoiceLab\dist\VoiceCompanion_v2\*"; DestDir: "{app}"; \
+Source: "C:\VoiceLab\dist\Ahee52_PrivateVoice\*"; DestDir: "{app}"; \
   Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]

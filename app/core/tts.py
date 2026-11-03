@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import os
+import re
 import sys
 import time
 from abc import ABC, abstractmethod
@@ -60,6 +61,27 @@ class TTSEngine(ABC):
         return getattr(self, "_loaded", False)
 
 
+_RE_JA = re.compile(r"[\u3040-\u30ff]")
+_RE_KO = re.compile(r"[\uac00-\ud7af]")
+_RE_ZH = re.compile(r"[\u4e00-\u9fff]")
+_RE_EN = re.compile(r"[A-Za-z]")
+
+
+def detect_lang(text: str) -> str:
+    """按字符集判断这句子该走哪个前端：ja / ko / zh / en。"""
+    if not text:
+        return "zh"
+    if _RE_JA.search(text):
+        return "ja"
+    if _RE_KO.search(text):
+        return "ko"
+    if _RE_ZH.search(text):
+        return "zh"
+    if _RE_EN.search(text):
+        return "en"
+    return "zh"
+
+
 class AquaTTSEngine(TTSEngine):
     """GPT-SoVITS v3（经由 Aqua-TTS 的流式封装）。
 
@@ -81,6 +103,14 @@ class AquaTTSEngine(TTSEngine):
 
     # -- 加载 ----------------------------------------------------------
     def _prepare_env(self) -> None:
+        try:
+            import os as _os
+
+            nltk_dir = Path(__file__).resolve().parents[2] / "nltk_data"
+            if nltk_dir.exists():
+                _os.environ.setdefault("NLTK_DATA", str(nltk_dir))
+        except Exception:
+            pass
         os.environ.setdefault("GPT_SOVITS_HOME", str(self.home))
         os.environ.setdefault("ENABLE_CUDA_GRAPH", "1")
         if self.cfg.get("disable_bigvgan_kernel", True):
@@ -233,7 +263,8 @@ class AquaTTSEngine(TTSEngine):
         """v4：走上游 TTS.run()，cut5 切分下首包约 1.1s、RTF≈0.6。"""
         inputs = {
             "text": text,
-            "text_lang": "zh",
+            "text_lang": (detect_lang(text)
+                          if bool(self.cfg.get("auto_lang", True)) else "zh"),
             "ref_audio_path": str(reference),
             "prompt_text": reference_text,
             "prompt_lang": "zh",
