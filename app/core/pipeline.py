@@ -156,6 +156,7 @@ class Pipeline:
         self._tts: TTSEngine | None = None
         self._turn_audio: list[tuple[np.ndarray, int]] = []
         self._web_sources: list[str] = []
+        self._base_tts: TTSEngine | None = None
         self.style_id = str(config.get("llm.default_style", "gentle"))
         self._tts_key: tuple[str, str] = ("", "")
 
@@ -213,6 +214,26 @@ class Pipeline:
         )
         self.character = character
         self._emit("info", text=f"已切换到角色：{character.name}")
+
+    def _base_engine(self) -> TTSEngine | None:
+        """基础音色（s1v3 + s2Gv4，不带 LoRA）：角色音色坏了时的兜底。"""
+        if getattr(self, "_base_tts", None) is not None:
+            return self._base_tts
+        try:
+            pm = Path(self.config.path_of("gpt_sovits")) / "GPT_SoVITS" / "pretrained_models"
+            gpt = pm / "s1v3.ckpt"
+            sovits = pm / "gsv-v4-pretrained" / "s2Gv4.pth"
+            if not sovits.exists():
+                sovits = pm / "s2Gv4.pth"
+            if not (gpt.exists() and sovits.exists()):
+                return None
+            engine = make_engine(self.config)
+            engine.load(str(gpt), str(sovits))
+            self._base_tts = engine
+            return engine
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("加载基础音色失败：%s", exc)
+            return None
 
     def _ensure_tts(self) -> TTSEngine:
         with self._tts_lock:
@@ -572,8 +593,8 @@ class Pipeline:
                 for delta in self.llm.chat_stream(
                         self._messages(user_text),
                         temperature=float((ch.llm or {}).get("temperature", 0.8)),
-                        max_tokens=(768 if self._web_sources else
-                                    int((ch.llm or {}).get("max_tokens", 320))),
+                        max_tokens=(512 if self._web_sources else
+                                    int((ch.llm or {}).get("max_tokens", 180))),
                         sampling=self._style(),
                         cancel=cancel):
                     if cancel.is_set():
@@ -835,6 +856,24 @@ class Pipeline:
                             cand_peak = float(np.max(np.abs(alt[0])))
                             if cand_peak > peak:
                                 data, sr_out, peak = alt[0], alt[1], cand_peak
+                    if peak < 0.02:
+                        base = self._base_engine()
+                        if base is not None:
+                            try:
+                                got: list[np.ndarray] = []
+                                with self._tts_lock:
+                                    for c2 in base.synthesize_stream(text, ref, ref_text):
+                                        got.append(np.asarray(c2.samples, np.float32))
+                                if got:
+                                    cand = np.concatenate(got)
+                                    cpk = float(np.max(np.abs(cand)))
+                                    if cpk >= 0.02:
+                                        self._emit(
+                                            "info",
+                                            text="角色音色异常，本回合临时改用基础音色")
+                                        data, peak = cand, cpk
+                            except Exception as exc:  # noqa: BLE001
+                                logger.warning("基础音色兜底失败：%s", exc)
                     if peak < 0.02:
                         self._emit("error", text=f"这句合成不出声音，已跳过：{text[:12]}…")
                         failed += 1
