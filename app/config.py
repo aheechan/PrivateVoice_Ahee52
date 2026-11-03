@@ -211,6 +211,12 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "poll_ms": 20,
         "min_hold_ms": 150,
     },
+    "web": {
+        "enabled": False,          # 设置里手动打开；关闭时完全离线
+        "always": False,           # True=每轮都搜；False=只有像"查最新…"的话才搜
+        "max_results": 4,
+        "timeout_ms": 6000,
+    },
     "llm": {
         "history_turns": 12,
         "token_budget": 1500,

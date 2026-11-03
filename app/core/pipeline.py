@@ -451,6 +451,15 @@ class Pipeline:
                 return s
         return styles[0] if styles else {}
 
+    def _should_search(self, user_text: str) -> bool:
+        if not bool(self.config.get("web.enabled", False)):
+            return False
+        from app.core import websearch
+
+        if bool(self.config.get("web.always", False)):
+            return True
+        return websearch.needs_search(user_text)
+
     def _messages(self, user_text: str) -> list[dict[str, str]]:
         ch = self.character
         template = ""
@@ -470,6 +479,17 @@ class Pipeline:
         greeting = (getattr(ch, "greeting", "") or "").strip()
         if greeting:
             sys_text += f"\n你的开场白是：「{greeting}」（只在第一次见面时用，不要每轮重复）。"
+        if self._should_search(user_text):
+            try:
+                from app.core import websearch
+
+                results = websearch.search(user_text, self.config)
+                if results:
+                    sys_text += "\n\n" + websearch.format_context(results)
+                    self._emit("info", text=f"已联网检索 {len(results)} 条资料")
+                    self._web_sources = [r["url"] for r in results]
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("联网检索失败（忽略）：%s", exc)
         style = self._style()
         if style.get("hint"):
             sys_text += f"\n\n【本轮情绪】{style['name']}：{style['hint']}"

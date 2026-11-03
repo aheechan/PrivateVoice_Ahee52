@@ -163,6 +163,8 @@ class SettingsDialog(QDialog):
         self.log_level = QComboBox()
         self.log_level.addItems(LOG_LEVELS)
         form3.addRow("日志级别", self.log_level)
+        self.web_enabled = QCheckBox("允许联网搜索（Bing，问新闻/最新信息时会上网查）")
+        form3.addRow("", self.web_enabled)
         self.autostart = QCheckBox("开机自动启动（注册表 Run 项）")
         form3.addRow("", self.autostart)
         root.addWidget(gb_ui)
@@ -202,6 +204,7 @@ class SettingsDialog(QDialog):
             i = box.findData(val)
             box.setCurrentIndex(max(0, i))
         self.save_tts.setChecked(bool(cfg.get("audio.save_tts", True)))
+        self.web_enabled.setChecked(bool(cfg.get("web.enabled", False)))
 
     def _save(self) -> None:
         cfg = self.config
@@ -214,6 +217,7 @@ class SettingsDialog(QDialog):
         cfg.set("audio.input_device", self.in_box.currentData())
         cfg.set("audio.output_device", self.out_box.currentData())
         cfg.set("audio.save_tts", self.save_tts.isChecked())
+        cfg.set("web.enabled", self.web_enabled.isChecked())
         try:
             from app.main import install_autostart
             install_autostart(self.autostart.isChecked())
