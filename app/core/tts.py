@@ -293,7 +293,8 @@ class AquaTTSEngine(TTSEngine):
             "fragment_interval": self.cfg.get("fragment_interval", 0.3),
             "seed": int(kwargs.get("seed", random.randint(1, 99999))),
             "parallel_infer": True,
-            "repetition_penalty": 1.35,
+            "repetition_penalty": float(
+                (self.cfg or {}).get("repetition_penalty", 1.9)),
             "sample_steps": self.cfg.get("sample_steps", 4),
             "super_sampling": False,
         }
@@ -301,7 +302,8 @@ class AquaTTSEngine(TTSEngine):
         if "speed" in kwargs:
             inputs["speed_factor"] = float(kwargs["speed"])
         for key in ("top_k", "top_p", "temperature", "sample_steps",
-                    "text_split_method", "seed", "fragment_interval"):
+                    "text_split_method", "seed", "fragment_interval",
+                    "repetition_penalty"):
             if key in kwargs and kwargs[key] is not None:
                 inputs[key] = kwargs[key]
         inputs.update({k: v for k, v in kwargs.items() if k in inputs})

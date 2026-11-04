@@ -220,7 +220,8 @@ class Pipeline:
         ch = self.character
         v = (ch.voice if ch else {}) or {}
         out: dict[str, Any] = {}
-        for key in ("speed", "top_k", "temperature", "sample_steps"):
+        for key in ("speed", "top_k", "temperature", "sample_steps",
+                    "repetition_penalty"):
             if v.get(key) is not None:
                 out[key] = v[key]
         return out

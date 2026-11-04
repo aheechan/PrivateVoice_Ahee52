@@ -171,6 +171,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "top_k": 5,
         "top_p": 1.0,
         "temperature": 0.6,
+        "repetition_penalty": 1.9,   # 越大越不容易拖音/复读
         # 异常延音保护：超长时先用 top_k=15 重试一次，仍超长才截断
         "retry_top_k": 15,
         "retry_temperature": 0.7,

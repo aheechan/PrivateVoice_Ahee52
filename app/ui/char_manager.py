@@ -172,6 +172,13 @@ class CharacterManager(QDialog):
         self.f_steps.setValue(4)
         self.f_steps.setFixedWidth(90)
         self.f_steps.setMinimumHeight(26)
+        self.f_rp = QDoubleSpinBox()
+        self.f_rp.setRange(1.2, 2.2)
+        self.f_rp.setSingleStep(0.05)
+        self.f_rp.setDecimals(2)
+        self.f_rp.setValue(1.9)
+        self.f_rp.setFixedWidth(90)
+        self.f_rp.setMinimumHeight(26)
         self.f_interj = QDoubleSpinBox()
         self.f_interj.setRange(0.5, 3.0)
         self.f_interj.setSingleStep(0.1)
@@ -192,6 +199,8 @@ class CharacterManager(QDialog):
              "越高音色变化越多、情绪更活，但更容易拖音或跑调。"),
             ("top_k", self.f_topk,
              "采样范围；偏小更稳但容易把语气词拖长，10-15 更活泼。"),
+            ("重复惩罚", self.f_rp,
+             "越大越不容易拖音、复读；调到 1.8-2.0 效果明显，太大可能吞字。"),
             ("采样步数", self.f_steps,
              "v4 扩散步数；越大越细腻但更慢，4 最快，8 更稳。"),
             ("语气词上限（秒）", self.f_interj,
@@ -212,7 +221,7 @@ class CharacterManager(QDialog):
         self.info.setStyleSheet("color:#666;font-size:12px;")
         for w in (self.f_name, self.f_greeting, self.f_temp, self.f_max_tokens,
                   self.f_speed, self.f_gap, self.f_vtemp, self.f_topk,
-                  self.f_steps, self.f_interj):
+                  self.f_steps, self.f_interj, self.f_rp):
             sig = getattr(w, "valueChanged", None) or getattr(w, "textChanged", None)
             if sig is not None:
                 sig.connect(self._mark_dirty)
@@ -290,6 +299,7 @@ class CharacterManager(QDialog):
         self.f_topk.setValue(int(voice.get("top_k", 5)))
         self.f_steps.setValue(int(voice.get("sample_steps", 4)))
         self.f_interj.setValue(float(voice.get("interjection_max_sec", 1.2)))
+        self.f_rp.setValue(float(voice.get("repetition_penalty", 1.9)))
         av = self.store.avatar_path(c.id)
         if av.exists():
             pm = QPixmap(str(av)).scaled(64, 64, Qt.KeepAspectRatioByExpanding,
@@ -337,6 +347,7 @@ class CharacterManager(QDialog):
             "top_k": int(self.f_topk.value()),
             "sample_steps": int(self.f_steps.value()),
             "interjection_max_sec": round(self.f_interj.value(), 2),
+            "repetition_penalty": round(self.f_rp.value(), 2),
         })
         c.voice = voice
         self.store.save(c)
