@@ -476,7 +476,8 @@ class MainController(QObject):
             self.tray.notify("还没有角色", "先新建一个角色")
             return
         if self._main is not None:
-            self._main.set_state("thinking", "文字输入")
+            self._main.set_state("thinking",
+                             "typing" if i18n.get_lang() == "en" else "文字输入")
         pipe.submit_text(text)
 
     def set_language(self, code: str) -> None:

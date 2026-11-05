@@ -122,7 +122,8 @@ class MainWindow(QWidget):
         root.addWidget(self.status)
 
         row_style = QHBoxLayout()
-        lab = QLabel(i18n.t("main.mood"))
+        self.mood_label = QLabel(i18n.t("main.mood"))
+        lab = self.mood_label
         lab.setObjectName("Muted")
         row_style.addWidget(lab)
         self.style_box = QComboBox()
@@ -184,6 +185,7 @@ class MainWindow(QWidget):
         self.btn_warm.setToolTip(tz("提前把 ASR / TTS 加载进显存，第一次说话就不用等加载"))
         self.btn_warm.clicked.connect(self.request_warmup.emit)
         row.addWidget(self.btn_warm)
+        self._bottom_buttons: list[tuple[QPushButton, str]] = []
         self.btn_clean = QPushButton(i18n.t("main.clean"))
         self.btn_clean.setToolTip(
             "删除临时音频与日志：\n"
@@ -199,11 +201,26 @@ class MainWindow(QWidget):
             b = QPushButton(tz(text))
             b.clicked.connect(sig.emit)
             row.addWidget(b)
+            self._bottom_buttons.append((b, text))
         root.addLayout(row)
 
     def set_hotkey_label(self, label: str) -> None:
         if hasattr(self, "hint"):
-            self.hint.setText(f"也可以按住 {label} 说话")
+            self.hint.setText(i18n.t("main.talk_hint", hotkey=label))
+
+    def _rebuild_styles(self) -> None:
+        """语言切换后重建情绪下拉（保留当前选择）。"""
+        if not hasattr(self, "style_box"):
+            return
+        current = self.style_box.currentData()
+        self.style_box.blockSignals(True)
+        self.style_box.clear()
+        for s in self.config.get("llm.styles", []) or []:
+            self.style_box.addItem(tz(s.get("name", s.get("id"))), s.get("id"))
+        idx = self.style_box.findData(current)
+        if idx >= 0:
+            self.style_box.setCurrentIndex(idx)
+        self.style_box.blockSignals(False)
 
     def retranslate(self) -> None:
         self.setWindowTitle(i18n.t("main.title"))
@@ -215,6 +232,12 @@ class MainWindow(QWidget):
         self.talk.setText(i18n.t("main.talk"))
         self.btn_warm.setText(i18n.t("main.warmup"))
         self.btn_clean.setText(i18n.t("main.clean"))
+        if hasattr(self, "mood_label"):
+            self.mood_label.setText(i18n.t("main.mood"))
+        for btn, key in getattr(self, "_bottom_buttons", []):
+            btn.setText(tz(key))
+        self._rebuild_styles()
+        self._refresh_status()
         self.hint.setText(i18n.t("main.talk_hint",
                                  hotkey=self.config.get("hotkey.spec", "shift+a")))
 
@@ -247,7 +270,7 @@ class MainWindow(QWidget):
             return
         self.name.setText(character.name)
         voice = "音色已就绪" if character.status == "ready" else character.status
-        self.sub.setText(f"{voice} · 片段 {character.dataset.get('clips', 0)} · "
+        self.sub.setText(f"{voice} · {tz('片段')} {character.dataset.get('clips', 0)} · "
                          f"{character.dataset.get('duration_sec', 0)} 秒素材")
         self.setWindowTitle(f"PrivateVoice_Ahee52 · {character.name}")
         av = self.store.avatar_path(character.id) if character else None
@@ -276,13 +299,17 @@ class MainWindow(QWidget):
         self._scroll_bottom()
 
     # -- 状态 ----------------------------------------------------------
+    def _refresh_status(self) -> None:
+        self.set_state(self._last_state or "idle", "")
+
     def set_state(self, state: str, detail: str = "") -> None:
         self._last_state = state
         text, color = STATUS.get(state, (state, "#888"))
-        self.status.setText(f"● {text}" + (f"　{detail}" if detail else ""))
+        self.status.setText(f"● {tz(text)}" + (f"　{tz(detail)}" if detail else ""))
         self.status.setStyleSheet(f"color:{color};font-size:13px;")
         busy = state in ("transcribing", "thinking", "speaking")
-        self.talk.setText(tz("按住打断") if state in ("speaking", "thinking") else "按住说话")
+        self.talk.setText(tz("按住打断") if state in ("speaking", "thinking")
+                          else i18n.t("main.talk"))
 
     def show_user(self, text: str) -> None:
         self.transcript.append(f"<b>你：</b>{text}")

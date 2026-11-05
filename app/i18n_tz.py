@@ -179,7 +179,8 @@ ZH_EN = {
     '活泼': 'Lively',
     '冷静': 'Calm',
     '毒舌': 'Sharp',
-    '低落': 'Low',
+    '低落': 'Low',    '还没有角色': 'No character yet',
+    '这里显示最近一轮对话': 'Last turn appears here',
 }
 
 
