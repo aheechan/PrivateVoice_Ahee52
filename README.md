@@ -146,4 +146,4 @@ python app/main.py
 
 ---
 
-**本地整合包版本 / Integrated build:** `PrivateVoice_Ahee52-Beta3.8-本地整合包`
+**本地整合包版本 / Integrated build:** `PrivateVoice_Ahee52 1.0.0`

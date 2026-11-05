@@ -2,21 +2,21 @@
 ; 编译：ISCC.exe /Qp installer.iss
 ; 说明：包体约 12.6GB，为了构建速度这里不压缩；安装时直接复制。
 
-#define MyAppName "Ahee52_PrivateVoice-ASR-cn-beta"
-#define MyAppVersion "Beta3.8"
+#define MyAppName "PrivateVoice_Ahee52"
+#define MyAppVersion "1.0.0"
 #define MyAppPublisher "VoiceLab"
-#define MyAppExeName "Ahee52_PrivateVoice-ASR-cn-beta.exe"
+#define MyAppExeName "PrivateVoice_Ahee52.exe"
 
 [Setup]
-AppId={{B7E4A1C9-52D3-4F18-9E06-3C8D1A7B5F42}
+AppId={{3E7C1A5D-9B24-4F60-8A31-6D2E9B4C7F18}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
-DefaultDirName={autopf}\Ahee52_PrivateVoice
+DefaultDirName={autopf}\PrivateVoice_Ahee52
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 OutputDir=C:\VoiceLab\dist\installer
-OutputBaseFilename=PrivateVoice_Ahee52-Beta3.8-Setup
+OutputBaseFilename=PrivateVoice_Ahee52-1.0.0-Setup
 SetupIconFile=C:\VoiceLab\dist\app.ico
 UninstallDisplayIcon={app}\app.ico
 Compression=none
@@ -38,7 +38,7 @@ Name: "chinese"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "创建桌面快捷方式"; GroupDescription: "快捷方式："
 
 [Files]
-Source: "C:\VoiceLab\dist\Ahee52_PrivateVoice\*"; DestDir: "{app}"; \
+Source: "C:\VoiceLab\dist\PrivateVoice_Ahee52\*"; DestDir: "{app}"; \
   Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
