@@ -37,16 +37,16 @@ PrivateVoice Ahee52 是一个 **完全本地运行** 的语音陪伴程序：
 
 **不需要装 Python，也不需要编译任何东西。**
 
-1. 打开本仓库右侧 **Releases** 页面，下载最新版本的 4 个文件：
+1. 打开本仓库右侧 **Releases** 页面，下载最新版本的全部文件（1 个 `.exe` + 7 个 `.bin`）：
 
    ```
    PrivateVoice_Ahee52-1.0.0-Setup.exe
    PrivateVoice_Ahee52-1.0.0-Setup-1.bin
    PrivateVoice_Ahee52-1.0.0-Setup-2.bin
-   PrivateVoice_Ahee52-1.0.0-Setup-3.bin
+   …（一直到 -7.bin）
    ```
 
-   > ⚠️ 四个文件必须放在**同一个文件夹**里，`.exe` 会自己去找同目录的 `.bin`。
+   > ⚠️ 所有文件必须放在**同一个文件夹**里，`.exe` 会自己去找同目录的 `.bin` 分卷。
 
 2. 双击 `PrivateVoice_Ahee52-1.0.0-Setup.exe`
    - 若 Windows 弹出「已保护你的电脑」，点 **更多信息 → 仍要运行**（安装包未做代码签名）
@@ -179,16 +179,16 @@ PrivateVoice Ahee52 is a **fully local** voice companion:
 
 **No Python, no build tools needed.**
 
-1. Open the **Releases** page and download all four files:
+1. Open the **Releases** page and download all assets (one `.exe` + seven `.bin` slices):
 
    ```
    PrivateVoice_Ahee52-1.0.0-Setup.exe
    PrivateVoice_Ahee52-1.0.0-Setup-1.bin
    PrivateVoice_Ahee52-1.0.0-Setup-2.bin
-   PrivateVoice_Ahee52-1.0.0-Setup-3.bin
+   … (up to -7.bin)
    ```
 
-   > ⚠️ Keep all four in **the same folder** — the `.exe` looks for the `.bin` files next to it.
+   > ⚠️ Keep all files in **the same folder** — the `.exe` looks for the `.bin` slices next to it.
 
 2. Run `PrivateVoice_Ahee52-1.0.0-Setup.exe`
    - If SmartScreen appears, choose **More info → Run anyway** (unsigned installer)

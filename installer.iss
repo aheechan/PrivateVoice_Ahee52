@@ -23,7 +23,7 @@ Compression=none
 SolidCompression=no
 ; Windows 单个 exe 上限约 4.2GB，包体 9.5GB 必须分卷
 DiskSpanning=yes
-DiskSliceSize=4000000000
+DiskSliceSize=1900000000
 WizardStyle=modern
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
