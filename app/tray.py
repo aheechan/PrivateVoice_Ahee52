@@ -116,7 +116,7 @@ class TrayIcon(QSystemTrayIcon):
         self.setIcon(make_icon(state))
         label = i18n.t(f"state.{state}") if f"state.{state}" in i18n.STRINGS["zh"] \
             else STATE_LABELS.get(state, state)
-        text = f"VoiceLab — {label}"
+        text = i18n.t("tray.tooltip", state=label)
         if detail:
             text += f"：{detail}"
         self.setToolTip(text)
@@ -128,7 +128,9 @@ class TrayIcon(QSystemTrayIcon):
     def set_progress(self, text: str) -> None:
         """训练中把进度文案挂到托盘 tooltip 上。"""
         self._progress_text = text
-        base = i18n.t("tray.tooltip", state=self._state)
+        label = i18n.t(f"state.{self._state}") if f"state.{self._state}" in i18n.STRINGS["zh"] \
+            else self._state
+        base = i18n.t("tray.tooltip", state=label)
         self.setToolTip(f"{base}：{text}" if text else base)
 
     # -- 角色菜单 ------------------------------------------------------

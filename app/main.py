@@ -727,7 +727,7 @@ def main() -> int:
         log.info("已有实例在运行，提示用户看托盘")
         QMessageBox.information(
             None, APP_NAME,
-            "Ahee52_PrivateVoice-ASR-cn-beta已经在运行了。\n\n"
+            "PrivateVoice_Ahee52已经在运行了。\n\n"
             "它常驻在系统托盘（任务栏右下角，可能被折叠进“^”里）。\n"
             "右键托盘图标可以打开「角色管理」「设置」「诊断」。")
         return 0
@@ -784,7 +784,7 @@ def main() -> int:
 
     # 让用户知道它去哪儿了（Windows 默认会把新图标塞进溢出区）
     controller.tray.notify(
-        "Ahee52_PrivateVoice-ASR-cn-beta 已启动",
+        "PrivateVoice_Ahee52 已启动",
         "图标在系统托盘（任务栏右下角，可能被折叠）。右键图标有菜单；"
         "按住 shift+a 说话。", 8000)
 

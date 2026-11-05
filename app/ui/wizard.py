@@ -101,8 +101,8 @@ class NewCharacterWizard(QWizard):
         self.state: dict[str, Any] = {}
         if character_id:
             self.state["cid"] = character_id
-        self.setWindowTitle("新建角色 — Ahee52_PrivateVoice-ASR-cn-beta" if not character_id
-                            else "训练 / 重训角色 — Ahee52_PrivateVoice-ASR-cn-beta")
+        self.setWindowTitle("新建角色 — PrivateVoice_Ahee52" if not character_id
+                            else "训练 / 重训角色 — PrivateVoice_Ahee52")
         self.resize(900, 660)
         self.setWizardStyle(QWizard.ModernStyle)
         self.setOption(QWizard.NoBackButtonOnStartPage, True)

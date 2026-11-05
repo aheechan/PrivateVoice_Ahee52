@@ -79,7 +79,7 @@ class MainWindow(QWidget):
         super().__init__(parent)
         self.config = config
         self.store = store
-        self.setWindowTitle("Ahee52_PrivateVoice-ASR-cn-beta")
+        self.setWindowTitle("PrivateVoice_Ahee52")
         self.setObjectName("Root")
         self.resize(460, 620)
         self._character = None
@@ -248,7 +248,7 @@ class MainWindow(QWidget):
         voice = "音色已就绪" if character.status == "ready" else character.status
         self.sub.setText(f"{voice} · 片段 {character.dataset.get('clips', 0)} · "
                          f"{character.dataset.get('duration_sec', 0)} 秒素材")
-        self.setWindowTitle(f"Ahee52_PrivateVoice-ASR-cn-beta · {character.name}")
+        self.setWindowTitle(f"PrivateVoice_Ahee52 · {character.name}")
         av = self.store.avatar_path(character.id) if character else None
         self.avatar.setPixmap(_avatar_pixmap(av, initial=character.name))
         self.talk.setEnabled(character.status == "ready")

@@ -10,8 +10,8 @@ SUPPORTED = ("zh", "en")
 
 STRINGS: dict[str, dict[str, str]] = {
     "zh": {
-        "app.name": "Ahee52_PrivateVoice-ASR-cn-beta",
-        "tray.tooltip": "情感陪伴器 — {state}",
+        "app.name": "PrivateVoice_Ahee52",
+        "tray.tooltip": "PrivateVoice_Ahee52 — {state}",
         "tray.character": "当前角色",
         "tray.retry": "重试上一轮",
         "tray.new": "新建角色…",
@@ -28,7 +28,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "state.thinking": "思考中",
         "state.speaking": "说话中",
         "state.training": "训练中",
-        "main.title": "情感陪伴器",
+        "main.title": "PrivateVoice_Ahee52",
         "main.talk": "按住说话",
         "main.talk_hint": "也可以按住 {hotkey} 说话",
         "main.send": "发送",
@@ -58,8 +58,8 @@ STRINGS: dict[str, dict[str, str]] = {
         "char.refresh_hint": "F5 刷新列表",
     },
     "en": {
-        "app.name": "Ahee52_PrivateVoice-ASR-cn-beta",
-        "tray.tooltip": "PrivateVoice — {state}",
+        "app.name": "PrivateVoice_Ahee52",
+        "tray.tooltip": "PrivateVoice_Ahee52 — {state}",
         "tray.character": "Current character",
         "tray.retry": "Retry last turn",
         "tray.new": "New character…",
@@ -76,7 +76,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "state.thinking": "Thinking",
         "state.speaking": "Speaking",
         "state.training": "Training",
-        "main.title": "PrivateVoice",
+        "main.title": "PrivateVoice_Ahee52",
         "main.talk": "Hold to talk",
         "main.talk_hint": "You can also hold {hotkey} to talk",
         "main.send": "Send",
