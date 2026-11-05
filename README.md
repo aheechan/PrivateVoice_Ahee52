@@ -31,21 +31,85 @@ PrivateVoice Ahee52 是一个 **完全本地运行** 的语音陪伴程序：
 
 首次启动向导里有 **ASR 模型选择**（中文 paraformer / English whisper），点「下载缺失模型」即可。
 
-### 快速开始（从源码）
+## 安装
+
+### A. 普通用户：下载安装包（推荐）
+
+**不需要装 Python，也不需要编译任何东西。**
+
+1. 打开本仓库右侧 **Releases** 页面，下载最新版本的 4 个文件：
+
+   ```
+   PrivateVoice_Ahee52-1.0.0-Setup.exe
+   PrivateVoice_Ahee52-1.0.0-Setup-1.bin
+   PrivateVoice_Ahee52-1.0.0-Setup-2.bin
+   PrivateVoice_Ahee52-1.0.0-Setup-3.bin
+   ```
+
+   > ⚠️ 四个文件必须放在**同一个文件夹**里，`.exe` 会自己去找同目录的 `.bin`。
+
+2. 双击 `PrivateVoice_Ahee52-1.0.0-Setup.exe`
+   - 若 Windows 弹出「已保护你的电脑」，点 **更多信息 → 仍要运行**（安装包未做代码签名）
+   - 默认装到 `C:\Program Files\PrivateVoice_Ahee52`，约需 12 GB
+
+3. 装完桌面有 `PrivateVoice_Ahee52` 快捷方式；首次启动向导：选语言 → 显卡自检 → 模型检查（已内置）→ 填 LLM 地址
+
+4. 「对话模型」填任意 OpenAI 兼容接口，例如本地 llama.cpp：
+
+   ```
+   Base URL: http://127.0.0.1:8082/v1
+   模型名:   Qwen3.5-9B
+   ```
+
+   点「测试连接」通过后「开始使用」。
+
+5. 按住 `shift+a` 说话（也可在主界面打字）。
+
+**卸载**：设置 → 应用 → `PrivateVoice_Ahee52`。训练出的角色在安装目录 `characters\` 下，卸载前请备份。
+
+### B. 开发者：从源码运行
+
+前提：Windows 10/11、Python 3.12、NVIDIA 显卡（CUDA 11.8+ 驱动）、约 15 GB 磁盘。
 
 ```bash
+git clone <本仓库>
+cd PrivateVoice_Ahee52
+
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
 
-# 上游项目不随本仓库分发，需自行 clone 到同级目录
+# 上游推理框架不随本仓库分发，clone 到仓库同级目录
 git clone https://github.com/RVC-Boss/GPT-SoVITS.git
 git clone https://github.com/Lucas1479/Aqua-TTS.git
 
 python app/main.py
 ```
 
-首次启动：选语言 → 检查显卡 → 选 ASR 并下载 → 配置 LLM（任意 OpenAI 兼容接口）。
+首次启动点 **「下载缺失模型」**（约 2.6 GB，需联网）：
+
+- GPT-SoVITS v4 底模 + 48k 声码器
+- chinese-roberta / chinese-hubert 文本前端
+- ASR 二选一：**中文 paraformer**（默认）或 **English whisper**
+
+也可手动下载，清单见 `app/core/models.py`。
+
+### 首次启动会做什么
+
+| 步骤 | 说明 |
+|---|---|
+| 选语言 | 中文 / English，之后可在主界面或托盘切换 |
+| 显卡自检 | 需 RTX 20 系以上；显存 <8GB 推理会紧张 |
+| 模型检查 | 安装包已内置；源码用户在此下载 |
+| LLM 配置 | 任意 OpenAI 兼容接口，不填也能启动但不能对话 |
+
+### 常见问题
+
+- **装完打不开/闪退**：看 `安装目录\logs\app.log`，多为显卡驱动或杀软拦截
+- **没有麦克风**：主界面有文字输入框，功能完整
+- **提示已在运行**：程序是单实例的，检查右下角托盘
+- **训练显存不足**：训练前会自动卸载语音模型；仍失败请换素材或降档
+- **模型下载慢**：源码用户可手动下载到 `GPT-SoVITS/GPT_SoVITS/pretrained_models/`
 
 ### 目录结构
 
@@ -109,18 +173,85 @@ PrivateVoice Ahee52 is a **fully local** voice companion:
 | FunASR paraformer-zh (Chinese ASR, default) | speech recognition | ~840 MB |
 | faster-whisper small (English, optional) | speech recognition | ~480 MB |
 
-### Quick start (from source)
+## Installation
+
+### A. End users — download the installer (recommended)
+
+**No Python, no build tools needed.**
+
+1. Open the **Releases** page and download all four files:
+
+   ```
+   PrivateVoice_Ahee52-1.0.0-Setup.exe
+   PrivateVoice_Ahee52-1.0.0-Setup-1.bin
+   PrivateVoice_Ahee52-1.0.0-Setup-2.bin
+   PrivateVoice_Ahee52-1.0.0-Setup-3.bin
+   ```
+
+   > ⚠️ Keep all four in **the same folder** — the `.exe` looks for the `.bin` files next to it.
+
+2. Run `PrivateVoice_Ahee52-1.0.0-Setup.exe`
+   - If SmartScreen appears, choose **More info → Run anyway** (unsigned installer)
+   - Defaults to `C:\Program Files\PrivateVoice_Ahee52`, needs ~12 GB
+
+3. Launch `PrivateVoice_Ahee52`; wizard: language → GPU → models (bundled) → LLM endpoint
+
+4. Fill in any OpenAI-compatible endpoint, e.g. a local llama.cpp server:
+
+   ```
+   Base URL: http://127.0.0.1:8082/v1
+   Model:    Qwen3.5-9B
+   ```
+
+   “Test connection”, then “Start”.
+
+5. Hold `shift+a` to talk, or type in the main window.
+
+**Uninstall**: Settings → Apps → `PrivateVoice_Ahee52`. Trained characters live in `characters\` inside the install folder — back them up first.
+
+### B. Developers — run from source
+
+Requirements: Windows 10/11, Python 3.12, NVIDIA GPU (CUDA 11.8+), ~15 GB disk.
 
 ```bash
+git clone <this repo>
+cd PrivateVoice_Ahee52
+
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
 
+# upstream inference stacks are not vendored; clone them next to this repo
 git clone https://github.com/RVC-Boss/GPT-SoVITS.git
 git clone https://github.com/Lucas1479/Aqua-TTS.git
 
 python app/main.py
 ```
+
+On first run click **“Download missing models”** (~2.6 GB):
+
+- GPT-SoVITS v4 base + 48 kHz vocoder
+- chinese-roberta / chinese-hubert front-ends
+- ASR: **Chinese paraformer** (default) or **English whisper**
+
+Manual download paths are listed in `app/core/models.py`.
+
+### First run overview
+
+| Step | Notes |
+|---|---|
+| Language | Chinese / English; switchable later from the main window or tray |
+| GPU check | RTX 20-series or newer; <8 GB VRAM is tight |
+| Models | Bundled in the installer; downloaded for source users |
+| LLM | Any OpenAI-compatible endpoint; app starts without it but cannot chat |
+
+### Troubleshooting
+
+- **Won't start / crashes**: check `logs\app.log`; usually GPU driver or antivirus
+- **No microphone**: the main window has a text input
+- **“Already running”**: single-instance app — check the system tray
+- **Training OOM**: voice models are unloaded automatically; if it persists, use a lighter profile
+- **Slow model download**: fetch from HuggingFace into `GPT-SoVITS/GPT_SoVITS/pretrained_models/`
 
 ### Highlights
 
