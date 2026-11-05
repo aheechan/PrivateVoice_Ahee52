@@ -59,6 +59,10 @@ class CharacterManager(QDialog):
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
+        from PySide6.QtGui import QKeySequence, QShortcut
+
+        self._refresh_shortcut = QShortcut(QKeySequence("F5"), self)
+        self._refresh_shortcut.activated.connect(self._refresh_list)
         self.table.itemSelectionChanged.connect(self._on_select)
         self.table.doubleClicked.connect(lambda _i: self._set_active())
         lv.addWidget(self.table, 1)
@@ -234,7 +238,7 @@ class CharacterManager(QDialog):
         self.btn_save.clicked.connect(self._save)
         self.btn_revert = QPushButton("还原本地修改")
         self.btn_revert.setEnabled(False)
-        self.btn_revert.clicked.connect(self._load_into_editor)
+        self.btn_revert.clicked.connect(self._revert)
         row.addWidget(self.btn_save)
         row.addWidget(self.btn_revert)
         row.addStretch(1)
@@ -270,13 +274,35 @@ class CharacterManager(QDialog):
         else:
             self._load_into_editor()
 
+    def _refresh_list(self) -> None:
+        """F5：重新读盘上的角色列表，保持当前选中项。"""
+        keep = self._current_id
+        self.refresh()
+        if keep:
+            for row in range(self.table.rowCount()):
+                item = self.table.item(row, 0)
+                if item and item.data(Qt.UserRole) == keep:
+                    self.table.selectRow(row)
+                    break
+        self.info.setText("列表已刷新（F5）")
+
     def _on_select(self) -> None:
         row = self.table.currentRow()
         if 0 <= row < len(self._ids):
             self._current_id = self._ids[row]
             self._load_into_editor()
 
-    def _load_into_editor(self) -> None:
+    def _revert(self) -> None:
+        """还原本地修改：从磁盘重读该角色并刷新界面。"""
+        if not self._current_id:
+            return
+        cid = self._current_id
+        self._load_into_editor(cid)
+        self.btn_save.setEnabled(False)
+        self.btn_revert.setEnabled(False)
+        self.info.setText("已还原为磁盘上的版本")
+
+    def _load_into_editor(self, cid: str | None = None) -> None:
         if not self._current_id:
             self.editor.setEnabled(False)
             return
@@ -380,9 +406,11 @@ class CharacterManager(QDialog):
         self.changed.emit()
 
     def _export(self) -> None:
-        if not self._current_id:
+        target = cid or self._current_id
+        if not target:
             return
-        c = self.store.get(self._current_id)
+        self._current_id = target
+        c = self.store.get(target)
         if c.status != "ready":
             QMessageBox.warning(self, "无法导出", "只有「可用」状态的角色才能导出。")
             return
@@ -413,9 +441,11 @@ class CharacterManager(QDialog):
             QMessageBox.critical(self, "导入失败", str(exc))
 
     def _delete(self) -> None:
-        if not self._current_id:
+        target = cid or self._current_id
+        if not target:
             return
-        c = self.store.get(self._current_id)
+        self._current_id = target
+        c = self.store.get(target)
         if QMessageBox.question(self, "删除角色",
                                 f"确定删除「{c.name}」？这会删掉它的数据集与权重。") \
                 != QMessageBox.Yes:

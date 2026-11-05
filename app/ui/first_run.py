@@ -5,10 +5,11 @@ from pathlib import Path
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QDialog, QDialogButtonBox, QFormLayout, QGroupBox, QHBoxLayout, QLabel,
-    QLineEdit, QMessageBox, QPushButton, QVBoxLayout,
+    QComboBox, QDialog, QDialogButtonBox, QFormLayout, QGroupBox, QHBoxLayout,
+    QLabel, QLineEdit, QMessageBox, QPushButton, QVBoxLayout,
 )
 
+from app import i18n
 from app.config import Config
 from app.core import train
 from app.core.llm import LLMClient, ProviderStore
@@ -24,24 +25,35 @@ class FirstRunWizard(QDialog):
     def __init__(self, config: Config, parent=None):
         super().__init__(parent)
         self.config = config
-        self.setWindowTitle("Enjoy Your Private Time · 首次运行")
+        self.setWindowTitle(i18n.t("firstrun.title"))
         self.resize(620, 520)
         self._build()
 
     def _build(self) -> None:
         root = QVBoxLayout(self)
+
+        row_lang = QHBoxLayout()
+        row_lang.addWidget(QLabel(i18n.t("firstrun.language")))
+        self.lang_box = QComboBox()
+        self.lang_box.addItem("中文", "zh")
+        self.lang_box.addItem("English", "en")
+        self.lang_box.setCurrentIndex(0 if i18n.get_lang() == "zh" else 1)
+        self.lang_box.currentIndexChanged.connect(self._on_lang)
+        row_lang.addWidget(self.lang_box)
+        row_lang.addStretch(1)
+        root.addLayout(row_lang)
+
         title = QLabel("Enjoy Your Private Time")
         title.setObjectName("Title")
         title.setStyleSheet("font-size:24px;font-weight:600;letter-spacing:1px;")
         root.addWidget(title)
-        sub = QLabel("享受你的私人独处时间。\n这台电脑是第一次运行，先做三项自检；"
-                     "全部通过就可以按住热键说话了。")
-        sub.setObjectName("Muted")
-        sub.setWordWrap(True)
-        root.addWidget(sub)
+        self.sub = QLabel(i18n.t("firstrun.subtitle"))
+        self.sub.setObjectName("Muted")
+        self.sub.setWordWrap(True)
+        root.addWidget(self.sub)
 
         # 1 GPU
-        gb1 = QGroupBox("1 · 显卡")
+        gb1 = QGroupBox(i18n.t("firstrun.gpu"))
         v1 = QVBoxLayout(gb1)
         info = train.gpu_info()
         ok, msg = train.check_hardware(self.config)
@@ -54,7 +66,7 @@ class FirstRunWizard(QDialog):
         root.addWidget(gb1)
 
         # 2 模型目录
-        gb2 = QGroupBox("2 · 模型文件")
+        gb2 = QGroupBox(i18n.t("firstrun.models"))
         v2 = QVBoxLayout(gb2)
         row = QHBoxLayout()
         self.model_dir = QLineEdit(str(self.config.path_of("gpt_sovits")))
@@ -67,10 +79,28 @@ class FirstRunWizard(QDialog):
         self.model_status.setWordWrap(True)
         self.model_status.setStyleSheet("color:#666;")
         v2.addWidget(self.model_status)
+        row_dl = QHBoxLayout()
+        row_dl.addWidget(QLabel("ASR 识别模型"))
+        self.asr_box = QComboBox()
+        self.asr_box.addItem("中文 paraformer（推荐）", "zh")
+        self.asr_box.addItem("English / 多语 whisper", "en")
+        self.config_lang = str(self.config.get("asr.acr_kind", "zh"))
+        self.asr_box.setCurrentIndex(0 if self.config_lang != "en" else 1)
+        row_dl.addWidget(self.asr_box)
+        self.btn_download = QPushButton("下载缺失模型")
+        self.btn_download.clicked.connect(self._download_models)
+        row_dl.addWidget(self.btn_download)
+        row_dl.addStretch(1)
+        v2 = gb2.layout()
+        if v2 is not None:
+            v2.addLayout(row_dl)
+            self.dl_status = QLabel("")
+            self.dl_status.setWordWrap(True)
+            v2.addWidget(self.dl_status)
         root.addWidget(gb2)
 
         # 3 LLM
-        gb3 = QGroupBox("3 · 对话模型（OpenAI 兼容）")
+        gb3 = QGroupBox(i18n.t("firstrun.llm"))
         form = QFormLayout(gb3)
         prov = ProviderStore(self.config).active()
         first = prov[0] if prov else None
@@ -102,6 +132,13 @@ class FirstRunWizard(QDialog):
         root.addWidget(btns)
         self._check_models()
 
+    def _on_lang(self, _idx: int) -> None:
+        code = self.lang_box.currentData()
+        i18n.set_lang(str(code))
+        self.setWindowTitle(i18n.t("firstrun.title"))
+        if hasattr(self, "sub"):
+            self.sub.setText(i18n.t("firstrun.subtitle"))
+
     # -- 检查 ----------------------------------------------------------
     def _check_models(self) -> None:
         base = Path(self.model_dir.text().strip())
@@ -127,6 +164,35 @@ class FirstRunWizard(QDialog):
             self.model_ok = True
             self.model_status.setText("模型齐全（v4 底模 + 声码器 + 文本前端）。")
             self.model_status.setStyleSheet("color:#2d7d46;")
+
+    def _download_models(self) -> None:
+        """按选择下载缺失模型（后台线程，避免卡界面）。"""
+        import threading
+        from pathlib import Path
+
+        from app.core import models as model_api
+
+        kind = self.asr_box.currentData()
+        self.config.set("asr.acr_kind", kind)
+        root = Path(self.model_dir.text().strip()).parent
+        if not self.dl_status.text():
+            self.dl_status.setText("准备下载…")
+        self.btn_download.setEnabled(False)
+
+        def work() -> None:
+            def prog(text: str, frac: float) -> None:
+                self.dl_status.setText(f"{text}  ({frac*100:.0f}%)")
+
+            try:
+                got = model_api.download_all(root, kind, prog)
+                self.dl_status.setText(
+                    "下载完成：" + ("、".join(got) if got else "模型已齐全"))
+            except Exception as exc:  # noqa: BLE001
+                self.dl_status.setText(f"下载失败：{exc}")
+            finally:
+                self.btn_download.setEnabled(True)
+
+        threading.Thread(target=work, daemon=True).start()
 
     def _test_llm(self) -> None:
         self.test_result.setText("测试中…")

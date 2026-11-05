@@ -7,6 +7,8 @@ from __future__ import annotations
 
 from typing import Callable
 
+from app import i18n
+
 from PySide6.QtCore import QPointF, QRectF, Qt, Signal
 from PySide6.QtGui import QAction, QColor, QFont, QIcon, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import QMenu, QSystemTrayIcon, QWidget
@@ -84,28 +86,36 @@ class TrayIcon(QSystemTrayIcon):
         self.setToolTip("VoiceLab — 待机")
 
         self._menu = QMenu()
-        self._char_menu = self._menu.addMenu("当前角色")
-        self._char_menu.setEnabled(False)
-        self._retry_action = self._menu.addAction("重试上一轮", self.retry_last.emit)
-        self._retry_action.setEnabled(False)
-        self._menu.addSeparator()
-        self._menu.addAction("新建角色…", self.new_character.emit)
-        self._menu.addAction("角色管理…", self.manage_characters.emit)
-        self._menu.addSeparator()
-        self._menu.addAction("大模型设置…", self.open_llm_settings.emit)
-        self._menu.addAction("设置…", self.open_settings.emit)
-        self._menu.addAction("诊断…", self.open_diagnostics.emit)
-        self._menu.addSeparator()
-        self._menu.addAction("退出", self.quit_requested.emit)
+        self.retranslate()
         self.setContextMenu(self._menu)
 
         self.activated.connect(self._on_activated)
+
+    def retranslate(self) -> None:
+        """重建菜单（语言切换后调用）。"""
+        self._menu.clear()
+        self._char_menu = self._menu.addMenu(i18n.t("tray.character"))
+        self._char_menu.setEnabled(False)
+        self._retry_action = self._menu.addAction(
+            i18n.t("tray.retry"), self.retry_last.emit)
+        self._retry_action.setEnabled(False)
+        self._menu.addSeparator()
+        self._menu.addAction(i18n.t("tray.new"), self.new_character.emit)
+        self._menu.addAction(i18n.t("tray.manage"), self.manage_characters.emit)
+        self._menu.addSeparator()
+        self._menu.addAction(i18n.t("tray.llm"), self.open_llm_settings.emit)
+        self._menu.addAction(i18n.t("tray.settings"), self.open_settings.emit)
+        self._menu.addAction(i18n.t("tray.diagnostics"), self.open_diagnostics.emit)
+        self._menu.addSeparator()
+        self._menu.addAction(i18n.t("tray.quit"), self.quit_requested.emit)
+        self.set_state(self._state)
 
     # -- 状态 ----------------------------------------------------------
     def set_state(self, state: str, detail: str = "") -> None:
         self._state = state
         self.setIcon(make_icon(state))
-        label = STATE_LABELS.get(state, state)
+        label = i18n.t(f"state.{state}") if f"state.{state}" in i18n.STRINGS["zh"] \
+            else STATE_LABELS.get(state, state)
         text = f"VoiceLab — {label}"
         if detail:
             text += f"：{detail}"
@@ -118,14 +128,14 @@ class TrayIcon(QSystemTrayIcon):
     def set_progress(self, text: str) -> None:
         """训练中把进度文案挂到托盘 tooltip 上。"""
         self._progress_text = text
-        base = f"VoiceLab — {STATE_LABELS.get(self._state, self._state)}"
+        base = i18n.t("tray.tooltip", state=self._state)
         self.setToolTip(f"{base}：{text}" if text else base)
 
     # -- 角色菜单 ------------------------------------------------------
     def set_characters(self, characters: list[tuple[str, str]], active_id: str) -> None:
         self._char_menu.clear()
         if not characters:
-            act = QAction("（还没有可用角色）", self._char_menu)
+            act = QAction(i18n.t("tray.no_char"), self._char_menu)
             act.setEnabled(False)
             self._char_menu.addAction(act)
             self._char_menu.setEnabled(False)

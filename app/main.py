@@ -29,6 +29,7 @@ if str(ROOT) not in sys.path:
 from app.config import Config  # noqa: E402
 from app.core import train  # noqa: E402
 from app.core.characters import CharacterStore  # noqa: E402
+from app import i18n  # noqa: E402
 from app.core.hotkey import HotkeyListener  # noqa: E402
 from app.core.pipeline import Pipeline, PipelineEvent  # noqa: E402
 from app.tray import TrayIcon, make_icon  # noqa: E402
@@ -447,6 +448,7 @@ class MainController(QObject):
             self._main.text_submitted.connect(self.submit_text)
             self._main.style_changed.connect(self.set_style)
             self._main.request_clean.connect(self.clean_cache)
+            self._main.language_changed.connect(self.set_language)
             self._main.talk_pressed.connect(self._on_press)
             self._main.talk_released.connect(self._on_release)
             self.bridge.stateChanged.connect(self._main.set_state)
@@ -476,6 +478,18 @@ class MainController(QObject):
         if self._main is not None:
             self._main.set_state("thinking", "文字输入")
         pipe.submit_text(text)
+
+    def set_language(self, code: str) -> None:
+        i18n.set_lang(code)
+        self.config.set("ui.language", code)
+        self.config.save()
+        try:
+            self.tray.retranslate()
+        except Exception:
+            pass
+        if self._main is not None:
+            self._main.retranslate()
+        self.log.info("界面语言切换：%s", code)
 
     def set_style(self, style_id: str) -> None:
         if not style_id:

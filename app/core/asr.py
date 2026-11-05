@@ -62,12 +62,42 @@ class ASREngine:
     def _load(self) -> None:
         if self._model is not None:
             return
+        if str(self.cfg.get("model", "")).lower().startswith("whisper"):
+            from faster_whisper import WhisperModel
+
+            self._backend = "whisper"
+            self._model = WhisperModel(
+                self.cfg.get("whisper_size", "small"),
+                device=self.cfg.get("device", "cuda"),
+                compute_type="int8_float16",
+                download_root=self.cfg.get("whisper_root") or None,
+            )
+            return
+        self._backend = "funasr"
         from funasr import AutoModel
         self._model = AutoModel(
             model=self.cfg.get("model", "paraformer-zh"),
             device=self.cfg.get("device", "cuda"),
             disable_update=True,
         )
+
+    def _transcribe_whisper(self, samples: np.ndarray, sr: int) -> ASRResult:
+        import time as _t
+
+        t0 = _t.perf_counter()
+        try:
+            import soundfile as _sf  # noqa: F401
+            segments, info = self._model.transcribe(
+                samples.astype("float32"), language=None, beam_size=5,
+                vad_filter=True)
+            text = "".join(seg.text for seg in segments).strip()
+            return ASRResult(text=text, confidence=0.9,
+                             elapsed_ms=(_t.perf_counter() - t0) * 1000,
+                             error="")
+        except Exception as exc:  # noqa: BLE001
+            return ASRResult(text="", confidence=0.0,
+                             elapsed_ms=(_t.perf_counter() - t0) * 1000,
+                             error=str(exc))
 
     def unload(self) -> None:
         """释放显存（给训练腾地方）。下次调用会自动重新加载。"""

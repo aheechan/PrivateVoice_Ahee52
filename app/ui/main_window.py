@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from app import i18n
 from PySide6.QtCore import QRectF, QSize, Qt, Signal
 from PySide6.QtGui import QColor, QFont, QPainter, QPixmap
 from PySide6.QtWidgets import (
@@ -70,6 +71,7 @@ class MainWindow(QWidget):
     text_submitted = Signal(str)
     style_changed = Signal(str)
     request_clean = Signal()
+    language_changed = Signal(str)
     talk_pressed = Signal()
     talk_released = Signal()
 
@@ -102,9 +104,16 @@ class MainWindow(QWidget):
         col.addWidget(self.name)
         col.addWidget(self.sub)
         head.addLayout(col, 1)
-        self.btn_chars = QPushButton("角色库")
+        self.btn_chars = QPushButton(i18n.t("main.characters"))
         self.btn_chars.clicked.connect(self.request_characters.emit)
         head.addWidget(self.btn_chars)
+        self.btn_lang = QPushButton(i18n.t("main.language"))
+        self.btn_lang.setObjectName("Muted")
+        self.btn_lang.setToolTip(i18n.t("main.language_tip"))
+        self.btn_lang.clicked.connect(
+            lambda: self.language_changed.emit(
+                "en" if i18n.get_lang() == "zh" else "zh"))
+        head.addWidget(self.btn_lang)
         root.addLayout(head)
 
         self.status = QLabel("● 待机")
@@ -112,7 +121,7 @@ class MainWindow(QWidget):
         root.addWidget(self.status)
 
         row_style = QHBoxLayout()
-        lab = QLabel("情绪")
+        lab = QLabel(i18n.t("main.mood"))
         lab.setObjectName("Muted")
         row_style.addWidget(lab)
         self.style_box = QComboBox()
@@ -134,20 +143,20 @@ class MainWindow(QWidget):
         # 文字输入：没有麦克风时也能完整跑通链路
         row_in = QHBoxLayout()
         self.input = QLineEdit()
-        self.input.setPlaceholderText("也可以打字：输入后回车（没麦克风时用这个）")
+        self.input.setPlaceholderText(i18n.t("main.input_placeholder"))
         self.input.setMinimumHeight(36)
         self.input.setStyleSheet(
             "QLineEdit{background:#121722;border:1px solid #2a3444;border-radius:9px;"
             "color:#e6edf7;padding:6px 10px;font-size:13px;}")
         self.input.returnPressed.connect(self._submit_text)
-        self.btn_send = QPushButton("发送")
+        self.btn_send = QPushButton(i18n.t("main.send"))
         self.btn_send.setMinimumHeight(36)
         self.btn_send.clicked.connect(self._submit_text)
         row_in.addWidget(self.input, 1)
         row_in.addWidget(self.btn_send)
         root.addLayout(row_in)
 
-        self.talk = QPushButton("按住说话")
+        self.talk = QPushButton(i18n.t("main.talk"))
         self.talk.setObjectName("Primary")
         self.talk.setMinimumHeight(96)
         self.talk.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
@@ -155,7 +164,8 @@ class MainWindow(QWidget):
         self.talk.released.connect(self._on_release)
         root.addWidget(self.talk)
 
-        self.hint = QLabel(f"也可以按住 {self.config.get('hotkey.spec', 'shift+a')} 说话")
+        self.hint = QLabel(i18n.t("main.talk_hint",
+                                  hotkey=self.config.get("hotkey.spec", "shift+a")))
         self.hint.setAlignment(Qt.AlignCenter)
         self.hint.setStyleSheet("color:#888;font-size:12px;")
         root.addWidget(self.hint)
@@ -169,11 +179,11 @@ class MainWindow(QWidget):
         root.addWidget(self.transcript, 1)
 
         row = QHBoxLayout()
-        self.btn_warm = QPushButton("预热")
+        self.btn_warm = QPushButton(i18n.t("main.warmup"))
         self.btn_warm.setToolTip("提前把 ASR / TTS 加载进显存，第一次说话就不用等加载")
         self.btn_warm.clicked.connect(self.request_warmup.emit)
         row.addWidget(self.btn_warm)
-        self.btn_clean = QPushButton("清理缓存")
+        self.btn_clean = QPushButton(i18n.t("main.clean"))
         self.btn_clean.setToolTip(
             "删除临时音频与日志：\n"
             "results\\tts（每轮合成音频，默认保留 10 分钟）、results\\quality、"
@@ -193,6 +203,19 @@ class MainWindow(QWidget):
     def set_hotkey_label(self, label: str) -> None:
         if hasattr(self, "hint"):
             self.hint.setText(f"也可以按住 {label} 说话")
+
+    def retranslate(self) -> None:
+        self.setWindowTitle(i18n.t("main.title"))
+        self.btn_chars.setText(i18n.t("main.characters"))
+        self.btn_lang.setText(i18n.t("main.language"))
+        self.btn_lang.setToolTip(i18n.t("main.language_tip"))
+        self.input.setPlaceholderText(i18n.t("main.input_placeholder"))
+        self.btn_send.setText(i18n.t("main.send"))
+        self.talk.setText(i18n.t("main.talk"))
+        self.btn_warm.setText(i18n.t("main.warmup"))
+        self.btn_clean.setText(i18n.t("main.clean"))
+        self.hint.setText(i18n.t("main.talk_hint",
+                                 hotkey=self.config.get("hotkey.spec", "shift+a")))
 
     def set_warmup_status(self, text: str) -> None:
         self.warm_hint.setText(text)
