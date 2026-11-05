@@ -1,6 +1,9 @@
 """角色管理：列表 + 右侧编辑栏（人设/开场白/头像/温度），以及 .vcp 导入导出。"""
 from __future__ import annotations
 
+from app import i18n
+from app.i18n_tz import tz
+
 from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal
@@ -38,7 +41,7 @@ class CharacterManager(QDialog):
         self.store = store
         self._ids: list[str] = []
         self._current_id: str | None = None
-        self.setWindowTitle("角色管理")
+        self.setWindowTitle(tz("角色管理"))
         self.resize(1000, 520)
         self._build()
         self.refresh()
@@ -46,7 +49,7 @@ class CharacterManager(QDialog):
     # -- UI ------------------------------------------------------------
     def _build(self) -> None:
         root = QVBoxLayout(self)
-        tip = QLabel("左边选角色，右边改人设。改完点「保存」，下一个对话轮立即生效。")
+        tip = QLabel(tz("左边选角色，右边改人设。改完点「保存」，下一个对话轮立即生效。"))
         tip.setStyleSheet("color:#666;")
         root.addWidget(tip)
 
@@ -55,7 +58,7 @@ class CharacterManager(QDialog):
         lv = QVBoxLayout(left)
         lv.setContentsMargins(0, 0, 0, 0)
         self.table = QTableWidget(0, 4)
-        self.table.setHorizontalHeaderLabels(["名字", "状态", "片段", "最近使用"])
+        self.table.setHorizontalHeaderLabels([tz("名字"), tz("状态"), tz("片段"), tz("最近使用")])
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
@@ -68,13 +71,13 @@ class CharacterManager(QDialog):
         lv.addWidget(self.table, 1)
 
         row = QHBoxLayout()
-        self.btn_new = QPushButton("新建角色…")
-        self.btn_train = QPushButton("上传素材/训练…")
-        self.btn_train.setToolTip("给选中的角色重新上传录音并训练（v3/v4 由设置决定）")
-        self.btn_active = QPushButton("设为当前")
-        self.btn_export = QPushButton("导出 .vcp…")
-        self.btn_import = QPushButton("导入 .vcp…")
-        self.btn_delete = QPushButton("删除")
+        self.btn_new = QPushButton(tz("新建角色…"))
+        self.btn_train = QPushButton(tz("上传素材/训练…"))
+        self.btn_train.setToolTip(tz("给选中的角色重新上传录音并训练（v3/v4 由设置决定）"))
+        self.btn_active = QPushButton(tz("设为当前"))
+        self.btn_export = QPushButton(tz("导出 .vcp…"))
+        self.btn_import = QPushButton(tz("导入 .vcp…"))
+        self.btn_delete = QPushButton(tz("删除"))
         for b in (self.btn_new, self.btn_train, self.btn_active, self.btn_export,
                   self.btn_import, self.btn_delete):
             row.addWidget(b)
@@ -88,7 +91,7 @@ class CharacterManager(QDialog):
 
         bottom = QHBoxLayout()
         bottom.addStretch(1)
-        btn_close = QPushButton("关闭")
+        btn_close = QPushButton(tz("关闭"))
         btn_close.clicked.connect(self.close)
         bottom.addWidget(btn_close)
         root.addLayout(bottom)
@@ -101,16 +104,16 @@ class CharacterManager(QDialog):
         self.btn_delete.clicked.connect(self._delete)
 
     def _build_editor(self) -> QWidget:
-        box = QGroupBox("当前角色")
+        box = QGroupBox(tz("当前角色"))
         v = QVBoxLayout(box)
 
         head = QHBoxLayout()
-        self.avatar = QLabel("无头像")
+        self.avatar = QLabel(tz("无头像"))
         self.avatar.setFixedSize(64, 64)
         self.avatar.setAlignment(Qt.AlignCenter)
         self.avatar.setStyleSheet("background:#eef1f6;border-radius:32px;color:#999;")
         head.addWidget(self.avatar)
-        self.btn_avatar = QPushButton("换头像…")
+        self.btn_avatar = QPushButton(tz("换头像…"))
         self.btn_avatar.clicked.connect(self._pick_avatar)
         head.addWidget(self.btn_avatar)
         head.addStretch(1)
@@ -119,15 +122,15 @@ class CharacterManager(QDialog):
         form = QFormLayout()
         self.f_name = QLineEdit()
         self.f_greeting = QLineEdit()
-        self.f_greeting.setPlaceholderText("第一次见面时说的话")
-        form.addRow("名字", self.f_name)
-        form.addRow("开场白", self.f_greeting)
+        self.f_greeting.setPlaceholderText(tz("第一次见面时说的话"))
+        form.addRow(tz("名字"), self.f_name)
+        form.addRow(tz("开场白"), self.f_greeting)
 
         self.f_persona = QPlainTextEdit()
         self.f_persona.setPlaceholderText(
-            "写她是谁、怎么说话、边界在哪。这段会作为 system prompt 的一部分发给 LLM。")
+            tz("写她是谁、怎么说话、边界在哪。这段会作为 system prompt 的一部分发给 LLM。"))
         self.f_persona.setMinimumHeight(130)
-        form.addRow("人设", self.f_persona)
+        form.addRow(tz("人设"), self.f_persona)
 
         self.f_temp = QDoubleSpinBox()
         self.f_temp.setRange(0.0, 2.0)
@@ -137,13 +140,13 @@ class CharacterManager(QDialog):
         self.f_max_tokens.setRange(80, 512)
         self.f_max_tokens.setValue(160)
         row_llm = QHBoxLayout()
-        row_llm.addWidget(QLabel("温度"))
+        row_llm.addWidget(QLabel(tz("温度")))
         row_llm.addWidget(self.f_temp)
         row_llm.addWidget(QLabel("max_tokens"))
         row_llm.addWidget(self.f_max_tokens)
         row_llm.addStretch(1)
         form.addRow("LLM", row_llm)
-        form.addRow("", _hint("温度越高越发散、越容易跑题；max_tokens 越大回复越长、越慢。"))
+        form.addRow("", _hint(tz("温度越高越发散、越容易跑题；max_tokens 越大回复越长、越慢。")))
         v.addLayout(form)
 
         self.f_speed = QDoubleSpinBox()
@@ -191,7 +194,7 @@ class CharacterManager(QDialog):
         self.f_interj.setFixedWidth(90)
         self.f_interj.setMinimumHeight(26)
 
-        gb_voice = QGroupBox("音色与节奏")
+        gb_voice = QGroupBox(tz("音色与节奏"))
         vb = QVBoxLayout(gb_voice)
         vb.setSpacing(2)
         for title, widget, hint in (
@@ -211,13 +214,13 @@ class CharacterManager(QDialog):
              "单独的“嗯/哦/唔”最多说多久，超过会被平滑收短，治单字延音。"),
         ):
             row = QHBoxLayout()
-            lab = QLabel(title)
+            lab = QLabel(tz(title))
             lab.setFixedWidth(110)
             row.addWidget(lab)
             row.addWidget(widget)
             row.addStretch(1)
             vb.addLayout(row)
-            vb.addWidget(_hint(hint))
+            vb.addWidget(_hint(tz(hint)))
         v.addWidget(gb_voice)
 
         self.info = QLabel("—")
@@ -233,10 +236,10 @@ class CharacterManager(QDialog):
         v.addWidget(self.info)
 
         row = QHBoxLayout()
-        self.btn_save = QPushButton("保存")
+        self.btn_save = QPushButton(tz("保存"))
         self.btn_save.setEnabled(False)
         self.btn_save.clicked.connect(self._save)
-        self.btn_revert = QPushButton("还原本地修改")
+        self.btn_revert = QPushButton(tz("还原本地修改"))
         self.btn_revert.setEnabled(False)
         self.btn_revert.clicked.connect(self._revert)
         row.addWidget(self.btn_save)
@@ -256,7 +259,7 @@ class CharacterManager(QDialog):
         for r, c in enumerate(chars):
             name = c.name + ("（当前）" if c.id == active else "")
             clips = c.dataset.get("clips", 0)
-            values = [name, STATUS_TEXT.get(c.status, c.status),
+            values = [name, tz(STATUS_TEXT.get(c.status, c.status)),
                       "—" if not clips else str(clips),
                       (c.last_used or "—")[:16].replace("T", " ")]
             for col, val in enumerate(values):
@@ -284,7 +287,7 @@ class CharacterManager(QDialog):
                 if item and item.data(Qt.UserRole) == keep:
                     self.table.selectRow(row)
                     break
-        self.info.setText("列表已刷新（F5）")
+        self.info.setText(tz("列表已刷新（F5）"))
 
     def _on_select(self) -> None:
         row = self.table.currentRow()
@@ -300,7 +303,7 @@ class CharacterManager(QDialog):
         self._load_into_editor(cid)
         self.btn_save.setEnabled(False)
         self.btn_revert.setEnabled(False)
-        self.info.setText("已还原为磁盘上的版本")
+        self.info.setText(tz("已还原为磁盘上的版本"))
 
     def _load_into_editor(self, cid: str | None = None) -> None:
         if not self._current_id:
@@ -334,10 +337,11 @@ class CharacterManager(QDialog):
             self.avatar.setText("")
         else:
             self.avatar.setPixmap(QPixmap())
-            self.avatar.setText("无头像")
+            self.avatar.setText(tz("无头像"))
         self.info.setText(
-            f"状态：{STATUS_TEXT.get(c.status, c.status)} · "
-            f"素材 {c.dataset.get('duration_sec', 0)} 秒 / {c.dataset.get('clips', 0)} 段\n"
+            f"{tz('状态')}: {tz(STATUS_TEXT.get(c.status, c.status))} · "
+            f"{tz('素材')} {c.dataset.get('duration_sec', 0)} s / "
+            f"{c.dataset.get('clips', 0)} {tz('片段')}\n"
             f"gpt：{Path(c.voice.get('gpt_ckpt', '')).name or '—'}　"
             f"sovits：{Path(c.voice.get('sovits_ckpt', '')).name or '—'}")
         self.btn_save.setEnabled(True)
@@ -354,10 +358,10 @@ class CharacterManager(QDialog):
             return
         name = self.f_name.text().strip()
         if not name:
-            QMessageBox.warning(self, "名字不能为空", "给角色起个名字。")
+            QMessageBox.warning(self, tz("名字不能为空"), "给角色起个名字。")
             return
         if self.store.name_taken(name, exclude=self._current_id):
-            QMessageBox.warning(self, "重名", f"已经有叫「{name}」的角色了。")
+            QMessageBox.warning(self, tz("重名"), f"已经有叫「{name}」的角色了。")
             return
         c = self.store.get(self._current_id)
         c.name = name
@@ -412,7 +416,7 @@ class CharacterManager(QDialog):
         self._current_id = target
         c = self.store.get(target)
         if c.status != "ready":
-            QMessageBox.warning(self, "无法导出", "只有「可用」状态的角色才能导出。")
+            QMessageBox.warning(self, tz("无法导出"), "只有「可用」状态的角色才能导出。")
             return
         dest, _ = QFileDialog.getSaveFileName(
             self, "导出角色包", f"{c.name}.vcp", "VoiceLab 角色包 (*.vcp)")
@@ -420,9 +424,9 @@ class CharacterManager(QDialog):
             return
         try:
             path = self.store.export_vcp(c.id, dest)
-            QMessageBox.information(self, "导出完成", f"已导出到：\n{path}")
+            QMessageBox.information(self, tz("导出完成"), f"已导出到：\n{path}")
         except Exception as exc:  # noqa: BLE001
-            QMessageBox.critical(self, "导出失败", str(exc))
+            QMessageBox.critical(self, tz("导出失败"), str(exc))
 
     def _import(self) -> None:
         src, _ = QFileDialog.getOpenFileName(
@@ -430,15 +434,15 @@ class CharacterManager(QDialog):
         if not src:
             return
         overwrite = QMessageBox.question(
-            self, "导入", "如果同名角色已存在，是否覆盖？",
+            self, tz("导入"), "如果同名角色已存在，是否覆盖？",
             QMessageBox.Yes | QMessageBox.No) == QMessageBox.Yes
         try:
             c = self.store.import_vcp(src, overwrite=overwrite)
-            QMessageBox.information(self, "导入完成", f"角色「{c.name}」已就绪。")
+            QMessageBox.information(self, tz("导入完成"), f"角色「{c.name}」已就绪。")
             self.refresh()
             self.changed.emit()
         except Exception as exc:  # noqa: BLE001
-            QMessageBox.critical(self, "导入失败", str(exc))
+            QMessageBox.critical(self, tz("导入失败"), str(exc))
 
     def _delete(self) -> None:
         target = cid or self._current_id
@@ -446,7 +450,7 @@ class CharacterManager(QDialog):
             return
         self._current_id = target
         c = self.store.get(target)
-        if QMessageBox.question(self, "删除角色",
+        if QMessageBox.question(self, tz("删除角色"),
                                 f"确定删除「{c.name}」？这会删掉它的数据集与权重。") \
                 != QMessageBox.Yes:
             return

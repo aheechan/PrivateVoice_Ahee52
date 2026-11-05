@@ -48,6 +48,14 @@
       "avatar": "",
       "created_at": "2026-11-03T15:59:41+0800",
       "last_used": ""
+    },
+    {
+      "id": "copied-demo",
+      "name": "CopyTest",
+      "status": "ready",
+      "avatar": "",
+      "created_at": "2026-11-03T15:59:41+0800",
+      "last_used": ""
     }
   ],
   "active_id": ""

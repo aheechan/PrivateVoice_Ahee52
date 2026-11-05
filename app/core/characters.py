@@ -117,7 +117,46 @@ class CharacterStore:
     def exists(self, cid: str) -> bool:
         return (self.dir_of(cid) / "profile.json").exists()
 
+    def _sync_from_disk(self) -> None:
+        """把直接拷进 characters/ 的目录补进 index.json（跨机器迁移/f 手动复制）。
+
+        以前只认 index.json，手动复制的角色文件夹根本看不见。
+        """
+        changed = False
+        known = {e.get("id") for e in self._index.get("characters", [])}
+        for d in self.root.iterdir() if self.root.exists() else []:
+            if not d.is_dir() or d.name in known:
+                continue
+            prof = d / "profile.json"
+            if not prof.exists():
+                continue
+            try:
+                data = json.loads(prof.read_text(encoding="utf-8-sig"))
+            except Exception:
+                continue
+            data.setdefault("id", d.name)
+            self._index.setdefault("characters", []).append({
+                "id": data["id"], "name": data.get("name", d.name),
+                "status": data.get("status", "ready"),
+                "avatar": data.get("avatar", ""),
+                "created_at": data.get("created_at", ""),
+                "last_used": data.get("last_used", ""),
+            })
+            changed = True
+        # 清掉指向不存在目录的条目
+        alive = [e for e in self._index.get("characters", [])
+                 if (self.dir_of(e["id"]) / "profile.json").exists()]
+        if len(alive) != len(self._index.get("characters", [])):
+            self._index["characters"] = alive
+            changed = True
+        if changed:
+            try:
+                self._save_index()
+            except Exception:
+                pass
+
     def list(self, status: Iterable[str] | None = None) -> list[Character]:
+        self._sync_from_disk()
         out: list[Character] = []
         for entry in self._index.get("characters", []):
             p = self.dir_of(entry["id"]) / "profile.json"

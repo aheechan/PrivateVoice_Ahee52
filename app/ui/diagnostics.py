@@ -1,6 +1,9 @@
 """诊断页：GPU/驱动/torch/CUDA、模型 commit、最近 TTFP、导出诊断包。"""
 from __future__ import annotations
 
+from app import i18n
+from app.i18n_tz import tz
+
 import json
 import platform
 import subprocess
@@ -26,13 +29,13 @@ class DiagnosticsDialog(QDialog):
     def __init__(self, config: Config, parent=None):
         super().__init__(parent)
         self.config = config
-        self.setWindowTitle("诊断")
+        self.setWindowTitle(tz("诊断"))
         self.resize(720, 560)
         self._build()
 
     def _build(self) -> None:
         root = QVBoxLayout(self)
-        gb = QGroupBox("运行环境")
+        gb = QGroupBox(tz("运行环境"))
         form = QFormLayout(gb)
         self.labels: dict[str, QLabel] = {}
         for key, title in (
@@ -43,19 +46,19 @@ class DiagnosticsDialog(QDialog):
             lab = QLabel("—")
             lab.setTextInteractionFlags(Qt.TextSelectableByMouse)
             self.labels[key] = lab
-            form.addRow(title, lab)
+            form.addRow(tz(title), lab)
         root.addWidget(gb)
 
         # 最近 20 轮延迟
-        gb2 = QGroupBox("最近 20 轮延迟")
+        gb2 = QGroupBox(tz("最近 20 轮延迟"))
         v2 = QVBoxLayout(gb2)
-        self.summary = QLabel("还没有对话记录")
+        self.summary = QLabel(tz("还没有对话记录"))
         self.summary.setStyleSheet("color:#333;")
         v2.addWidget(self.summary)
         self.turns = QTableWidget(0, 7)
         self.turns.setHorizontalHeaderLabels(
-            ["时间", "ASR(ms)", "LLM首token(ms)", "TTS首包(ms)", "e2e(ms)",
-             "播放(s)", "provider"])
+            [tz("时间"), "ASR(ms)", tz("LLM首token(ms)"), tz("TTS首包(ms)"),
+             "e2e(ms)", tz("播放(s)"), "provider"])
         self.turns.setEditTriggers(QTableWidget.NoEditTriggers)
         self.turns.horizontalHeader().setStretchLastSection(True)
         self.turns.setMinimumHeight(180)
@@ -64,13 +67,13 @@ class DiagnosticsDialog(QDialog):
 
         self.log = QPlainTextEdit()
         self.log.setReadOnly(True)
-        self.log.setPlaceholderText("这里显示诊断包导出结果与最近日志")
+        self.log.setPlaceholderText(tz("这里显示诊断包导出结果与最近日志"))
         root.addWidget(self.log, 1)
 
         row = QHBoxLayout()
-        self.refresh_btn = QPushButton("重新检测")
+        self.refresh_btn = QPushButton(tz("重新检测"))
         self.refresh_btn.clicked.connect(self.refresh)
-        self.export_btn = QPushButton("导出诊断包…")
+        self.export_btn = QPushButton(tz("导出诊断包…"))
         self.export_btn.clicked.connect(self._export)
         row.addWidget(self.refresh_btn)
         row.addWidget(self.export_btn)

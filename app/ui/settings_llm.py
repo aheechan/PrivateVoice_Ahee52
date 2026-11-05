@@ -1,6 +1,9 @@
 """LLM provider 管理：增删改、排序、连接测试、DPAPI 密钥。"""
 from __future__ import annotations
 
+from app import i18n
+from app.i18n_tz import tz
+
 import time
 import uuid
 
@@ -21,7 +24,7 @@ class ProviderDialog(QDialog):
 
     def __init__(self, provider: Provider | None = None, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("编辑 Provider" if provider else "新增 Provider")
+        self.setWindowTitle(tz("编辑 Provider") if provider else "新增 Provider")
         self.resize(520, 420)
         self._provider = provider
         self._api_key: str = ""       # 明文只存在内存，落盘前加密
@@ -38,9 +41,9 @@ class ProviderDialog(QDialog):
         self.timeout.setRange(1000, 120000)
         self.timeout.setSingleStep(1000)
         self.timeout.setValue(provider.timeout_ms if provider else 30000)
-        self.enabled = QCheckBox("启用")
+        self.enabled = QCheckBox(tz("启用"))
         self.enabled.setChecked(provider.enabled if provider else True)
-        self.stream = QCheckBox("支持流式（stream=true）")
+        self.stream = QCheckBox(tz("支持流式（stream=true）"))
         self.stream.setChecked(provider.supports_stream if provider else True)
         self.key = QLineEdit()
         self.key.setEchoMode(QLineEdit.Password)
@@ -53,11 +56,11 @@ class ProviderDialog(QDialog):
             "{}" if not provider or not provider.extra_body
             else __import__("json").dumps(provider.extra_body, ensure_ascii=False, indent=2))
 
-        form.addRow("名称", self.name)
+        form.addRow(tz("名称"), self.name)
         form.addRow("Base URL", self.base_url)
-        form.addRow("模型名", self.model)
-        form.addRow("优先级（小优先）", self.priority)
-        form.addRow("超时 (ms)", self.timeout)
+        form.addRow(tz("模型名"), self.model)
+        form.addRow(tz("优先级（小优先）"), self.priority)
+        form.addRow(tz(超时 (ms)), self.timeout)
         form.addRow("API Key", self.key)
         form.addRow("", self.enabled)
         form.addRow("", self.stream)
@@ -72,14 +75,14 @@ class ProviderDialog(QDialog):
     def _accept(self) -> None:
         import json
         if not self.name.text().strip() or not self.base_url.text().strip():
-            QMessageBox.warning(self, "缺少字段", "名称和 Base URL 必填。")
+            QMessageBox.warning(self, tz("缺少字段"), "名称和 Base URL 必填。")
             return
         try:
             extra = json.loads(self.extra.toPlainText() or "{}")
             if not isinstance(extra, dict):
                 raise ValueError
         except Exception:
-            QMessageBox.warning(self, "JSON 无效", "extra_body 必须是 JSON 对象。")
+            QMessageBox.warning(self, tz("JSON 无效"), "extra_body 必须是 JSON 对象。")
             return
         p = self._provider or Provider(
             id=f"p-{uuid.uuid4().hex[:8]}", name="", base_url="", model="")
@@ -110,22 +113,23 @@ class SettingsLLM(QDialog):
         self.config = config
         self.store = ProviderStore(config)
         self.client = LLMClient(config)
-        self.setWindowTitle("大模型 Provider 管理")
+        self.setWindowTitle(tz("大模型 Provider 管理"))
         self.resize(980, 520)
         self._build()
         self.refresh()
 
     def _build(self) -> None:
         root = QVBoxLayout(self)
-        tip = QLabel("按优先级从小到大依次尝试；失败或超时自动切下一个。"
-                     "密钥用 Windows DPAPI 加密后存进 config.yaml，界面只显示尾 4 位。")
+        tip = QLabel(tz("按优先级从小到大依次尝试；失败或超时自动切下一个。"
+                        "密钥用 Windows DPAPI 加密后存进 config.yaml，界面只显示尾 4 位。"))
         tip.setWordWrap(True)
         tip.setStyleSheet("color:#666;")
         root.addWidget(tip)
 
         self.table = QTableWidget(0, 7)
         self.table.setHorizontalHeaderLabels(
-            ["启用", "名称", "Base URL", "模型", "优先级", "Key", "最近测试"])
+            [tz("启用"), tz("名称"), "Base URL", tz("模型"),
+             tz("优先级"), "Key", tz("最近测试")])
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
@@ -133,12 +137,12 @@ class SettingsLLM(QDialog):
         root.addWidget(self.table, 1)
 
         row = QHBoxLayout()
-        self.btn_add = QPushButton("新增")
-        self.btn_edit = QPushButton("编辑")
-        self.btn_del = QPushButton("删除")
-        self.btn_up = QPushButton("上移")
-        self.btn_down = QPushButton("下移")
-        self.btn_test = QPushButton("连接测试")
+        self.btn_add = QPushButton(tz("新增"))
+        self.btn_edit = QPushButton(tz("编辑"))
+        self.btn_del = QPushButton(tz("删除"))
+        self.btn_up = QPushButton(tz("上移"))
+        self.btn_down = QPushButton(tz("下移"))
+        self.btn_test = QPushButton(tz("连接测试"))
         for b in (self.btn_add, self.btn_edit, self.btn_del, self.btn_up,
                   self.btn_down, self.btn_test):
             row.addWidget(b)
@@ -212,7 +216,7 @@ class SettingsLLM(QDialog):
         p = self._selected()
         if not p:
             return
-        if QMessageBox.question(self, "删除", f"删除 provider「{p.name}」？") \
+        if QMessageBox.question(self, tz("删除"), f"删除 provider「{p.name}」？") \
                 != QMessageBox.Yes:
             return
         self.store.remove(p.id)

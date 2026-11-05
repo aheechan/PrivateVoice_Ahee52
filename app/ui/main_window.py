@@ -8,6 +8,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from app import i18n
+from app.i18n_tz import tz
 from PySide6.QtCore import QRectF, QSize, Qt, Signal
 from PySide6.QtGui import QColor, QFont, QPainter, QPixmap
 from PySide6.QtWidgets import (
@@ -99,7 +100,7 @@ class MainWindow(QWidget):
         col = QVBoxLayout()
         self.name = QLabel("—")
         self.name.setStyleSheet("font-size:19px;font-weight:600;")
-        self.sub = QLabel("还没有角色")
+        self.sub = QLabel(tz("还没有角色"))
         self.sub.setStyleSheet("color:#777;")
         col.addWidget(self.name)
         col.addWidget(self.sub)
@@ -116,7 +117,7 @@ class MainWindow(QWidget):
         head.addWidget(self.btn_lang)
         root.addLayout(head)
 
-        self.status = QLabel("● 待机")
+        self.status = QLabel(tz("● 待机"))
         self.status.setObjectName("Status")
         root.addWidget(self.status)
 
@@ -126,7 +127,7 @@ class MainWindow(QWidget):
         row_style.addWidget(lab)
         self.style_box = QComboBox()
         for s in self.config.get("llm.styles", []) or []:
-            self.style_box.addItem(s.get("name", s.get("id")), s.get("id"))
+            self.style_box.addItem(tz(s.get("name", s.get("id"))), s.get("id"))
         idx = self.style_box.findData(self.config.get("llm.default_style", "gentle"))
         self.style_box.setCurrentIndex(max(0, idx))
         self.style_box.currentIndexChanged.connect(
@@ -175,12 +176,12 @@ class MainWindow(QWidget):
         self.transcript.setStyleSheet(
             "QTextEdit{background:#121722;border:1px solid #232b3a;border-radius:10px;"
             "color:#d7dee9;font-size:13px;padding:8px;}")
-        self.transcript.setPlaceholderText("这里显示最近一轮对话")
+        self.transcript.setPlaceholderText(tz("这里显示最近一轮对话"))
         root.addWidget(self.transcript, 1)
 
         row = QHBoxLayout()
         self.btn_warm = QPushButton(i18n.t("main.warmup"))
-        self.btn_warm.setToolTip("提前把 ASR / TTS 加载进显存，第一次说话就不用等加载")
+        self.btn_warm.setToolTip(tz("提前把 ASR / TTS 加载进显存，第一次说话就不用等加载"))
         self.btn_warm.clicked.connect(self.request_warmup.emit)
         row.addWidget(self.btn_warm)
         self.btn_clean = QPushButton(i18n.t("main.clean"))
@@ -195,7 +196,7 @@ class MainWindow(QWidget):
                           ("大模型", self.request_llm),
                           ("诊断", self.request_diagnostics),
                           ("新建角色", self.request_new_character)):
-            b = QPushButton(text)
+            b = QPushButton(tz(text))
             b.clicked.connect(sig.emit)
             row.addWidget(b)
         root.addLayout(row)
@@ -228,7 +229,7 @@ class MainWindow(QWidget):
         self.btn_send.setEnabled(ready and warm)
         self.talk.setEnabled(ready and warm)
         if not warm:
-            self.warm_hint.setText("正在预热模型（约 30 秒），完成后自动恢复输入…")
+            self.warm_hint.setText(tz("正在预热模型（约 30 秒），完成后自动恢复输入…"))
         elif not self.warm_hint.text():
             self.warm_hint.setText("")
 
@@ -237,7 +238,7 @@ class MainWindow(QWidget):
         self._character = character
         if character is None:
             self.name.setText("—")
-            self.sub.setText("还没有角色，先新建一个")
+            self.sub.setText(tz("还没有角色，先新建一个"))
             self.avatar.setPixmap(_avatar_pixmap(None))
             self.talk.setEnabled(False)
             self.input.setEnabled(False)
@@ -281,7 +282,7 @@ class MainWindow(QWidget):
         self.status.setText(f"● {text}" + (f"　{detail}" if detail else ""))
         self.status.setStyleSheet(f"color:{color};font-size:13px;")
         busy = state in ("transcribing", "thinking", "speaking")
-        self.talk.setText("按住打断" if state in ("speaking", "thinking") else "按住说话")
+        self.talk.setText(tz("按住打断") if state in ("speaking", "thinking") else "按住说话")
 
     def show_user(self, text: str) -> None:
         self.transcript.append(f"<b>你：</b>{text}")

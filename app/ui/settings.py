@@ -1,6 +1,9 @@
 """设置页：档位、音频设备、说话热键、日志级别、开机自启。"""
 from __future__ import annotations
 
+from app import i18n
+from app.i18n_tz import tz
+
 from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal
@@ -47,7 +50,8 @@ class HotkeyEdit(QPushButton):
         self.clicked.connect(self.start_capture)
 
     def _refresh(self) -> None:
-        self.setText(f"{self.spec.upper()}　（点击更换）" if self.spec else "点击后按键")
+        self.setText(f"{self.spec.upper()}　({tz('点击更换')})" if self.spec
+                     else tz("点击后按键"))
 
     def set_spec(self, spec: str) -> None:
         self.spec = (spec or "").strip().lower()
@@ -55,7 +59,7 @@ class HotkeyEdit(QPushButton):
 
     def start_capture(self) -> None:
         self._capturing = True
-        self.setText("请按下要用的键…（Esc 取消）")
+        self.setText(tz("请按下要用的键…（Esc 取消）"))
         self.setFocus(Qt.OtherFocusReason)
         self.grabKeyboard()
 
@@ -110,7 +114,7 @@ class SettingsDialog(QDialog):
 
     def __init__(self, config: Config, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("设置")
+        self.setWindowTitle(tz("设置"))
         self.setMinimumWidth(520)
         self.config = config
         self._build()
@@ -120,52 +124,52 @@ class SettingsDialog(QDialog):
     def _build(self) -> None:
         root = QVBoxLayout(self)
 
-        gb_train = QGroupBox("训练档位")
+        gb_train = QGroupBox(tz("训练档位"))
         form1 = QFormLayout(gb_train)
         self.profile_box = QComboBox()
         for key, meta in PROFILE_MATRIX.items():
-            self.profile_box.addItem(f"{meta['label']}（epochs={meta['epochs']}，"
+            self.profile_box.addItem(f"{tz(meta['label'])}（epochs={meta['epochs']}，"
                                      f"grad_accum={meta['grad_accum']}）", key)
-        form1.addRow("默认档位", self.profile_box)
+        form1.addRow(tz("默认档位"), self.profile_box)
         self.profile_hint = QLabel("")
         self.profile_hint.setWordWrap(True)
         self.profile_hint.setStyleSheet("color:#666;")
         form1.addRow("", self.profile_hint)
         root.addWidget(gb_train)
 
-        gb_audio = QGroupBox("音频设备")
+        gb_audio = QGroupBox(tz("音频设备"))
         form2 = QFormLayout(gb_audio)
         self.in_box = QComboBox()
         self.out_box = QComboBox()
         for kind, box in (("input", self.in_box), ("output", self.out_box)):
-            box.addItem("系统默认", None)
+            box.addItem(tz("系统默认"), None)
             try:
                 for d in audio_io.list_devices(kind):
                     box.addItem(d.label(), d.index)
             except Exception:
                 pass
-        form2.addRow("录音设备", self.in_box)
-        form2.addRow("播放设备", self.out_box)
-        self.save_tts = QCheckBox("把每轮合成的音频存到 results\\tts（便于检查音质）")
+        form2.addRow(tz("录音设备"), self.in_box)
+        form2.addRow(tz("播放设备"), self.out_box)
+        self.save_tts = QCheckBox(tz("把每轮合成的音频存到 results\\tts（便于检查音质）"))
         form2.addRow("", self.save_tts)
-        self.btn_open_tts = QPushButton("打开音频目录")
+        self.btn_open_tts = QPushButton(tz("打开音频目录"))
         self.btn_open_tts.clicked.connect(self._open_tts_dir)
         form2.addRow("", self.btn_open_tts)
         root.addWidget(gb_audio)
 
-        gb_ui = QGroupBox("交互与日志")
+        gb_ui = QGroupBox(tz("交互与日志"))
         form3 = QFormLayout(gb_ui)
         self.hotkey = HotkeyEdit(str(cfg_spec(self.config)))
-        self.hotkey_hint = QLabel("点按钮后直接按组合键；也可以只按 Shift 当按住说话。")
+        self.hotkey_hint = QLabel(tz("点按钮后直接按组合键；也可以只按 Shift 当按住说话。"))
         self.hotkey_hint.setObjectName("Muted")
-        form3.addRow("说话热键", self.hotkey)
+        form3.addRow(tz("说话热键"), self.hotkey)
         form3.addRow("", self.hotkey_hint)
         self.log_level = QComboBox()
         self.log_level.addItems(LOG_LEVELS)
-        form3.addRow("日志级别", self.log_level)
-        self.web_enabled = QCheckBox("允许联网搜索（Bing，问新闻/最新信息时会上网查）")
+        form3.addRow(tz("日志级别"), self.log_level)
+        self.web_enabled = QCheckBox(tz("允许联网搜索（Bing，问新闻/最新信息时会上网查）"))
         form3.addRow("", self.web_enabled)
-        self.autostart = QCheckBox("开机自动启动（注册表 Run 项）")
+        self.autostart = QCheckBox(tz("开机自动启动（注册表 Run 项）"))
         form3.addRow("", self.autostart)
         root.addWidget(gb_ui)
 
@@ -186,7 +190,7 @@ class SettingsDialog(QDialog):
     def _update_hint(self) -> None:
         key = self.profile_box.currentData()
         meta = PROFILE_MATRIX.get(key, {})
-        self.profile_hint.setText(meta.get("note", ""))
+        self.profile_hint.setText(tz(str(meta.get("note", ""))))
 
     # -- 数据 ----------------------------------------------------------
     def _load(self) -> None:
