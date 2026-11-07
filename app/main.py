@@ -34,8 +34,8 @@ from app.core.hotkey import HotkeyListener  # noqa: E402
 from app.core.pipeline import Pipeline, PipelineEvent  # noqa: E402
 from app.tray import TrayIcon, make_icon  # noqa: E402
 
-APP_NAME = "VoiceLab"
-SERVER_NAME = "VoiceLab-Stage2-SingleInstance"
+APP_NAME = "PrivateVoice_Ahee52"
+SERVER_NAME = "PrivateVoice_Ahee52-SingleInstance"
 LOG_FORMAT = "%(asctime)s %(levelname)-7s %(name)s: %(message)s"
 
 
@@ -722,7 +722,7 @@ def main() -> int:
     config = Config.load()
     config.bootstrap()
     log = setup_logging(config)
-    log.info("VoiceLab Stage3 启动，工作目录 %s", ROOT)
+    log.info("PrivateVoice_Ahee52 启动，工作目录 %s", ROOT)
 
     if _already_running():
         log.info("已有实例在运行，提示用户看托盘")

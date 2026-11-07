@@ -6,7 +6,7 @@ import sys
 import time
 from pathlib import Path
 
-ROOT = Path(r"C:\VoiceLab")
+ROOT = Path(r"C:\Local Repositories\PrivateVoice")
 REPO = ROOT / "GPT-SoVITS"
 for p in (str(REPO), str(REPO / "GPT_SoVITS")):
     if p not in sys.path:

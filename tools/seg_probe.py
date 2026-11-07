@@ -2,7 +2,7 @@
 import sys
 import time
 
-sys.path.insert(0, r"C:\VoiceLab")
+sys.path.insert(0, r"C:\Local Repositories\PrivateVoice")
 
 from app.config import Config  # noqa: E402
 from app.core import segment  # noqa: E402
@@ -13,7 +13,7 @@ WAV = r"C:\Users\72157\OneDrive\Desktop\Grace_voice\grace voice nanpu plus orig 
 cfg = Config.load()
 tr = Transcriber(cfg.label_cfg)
 t0 = time.time()
-res = segment.segment_file(WAV, cfg, r"C:\VoiceLab\datasets\_probe",
+res = segment.segment_file(WAV, cfg, r"C:\Local Repositories\PrivateVoice\datasets\_probe",
                            transcriber=tr, progress=lambda m: print("   ..", m, flush=True))
 print("[seg] elapsed %.1fs" % (time.time() - t0))
 print("[seg] clips:", len(res.rows))

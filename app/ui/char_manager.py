@@ -419,7 +419,7 @@ class CharacterManager(QDialog):
             QMessageBox.warning(self, tz("无法导出"), "只有「可用」状态的角色才能导出。")
             return
         dest, _ = QFileDialog.getSaveFileName(
-            self, "导出角色包", f"{c.name}.vcp", "VoiceLab 角色包 (*.vcp)")
+            self, "导出角色包", f"{c.name}.vcp", "PrivateVoice 角色包 (*.vcp)")
         if not dest:
             return
         try:
@@ -430,7 +430,7 @@ class CharacterManager(QDialog):
 
     def _import(self) -> None:
         src, _ = QFileDialog.getOpenFileName(
-            self, "导入角色包", "", "VoiceLab 角色包 (*.vcp)")
+            self, "导入角色包", "", "PrivateVoice 角色包 (*.vcp)")
         if not src:
             return
         overwrite = QMessageBox.question(

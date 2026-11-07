@@ -5,7 +5,7 @@ import time
 
 os.environ.setdefault("PYTHONIOENCODING", "utf-8")
 os.environ.setdefault("PYTHONUTF8", "1")
-os.environ["GPT_SOVITS_HOME"] = r"C:\VoiceLab\GPT-SoVITS"
+os.environ["GPT_SOVITS_HOME"] = r"C:\Local Repositories\PrivateVoice\GPT-SoVITS"
 os.environ.setdefault("ENABLE_CUDA_GRAPH", "1")
 os.environ.setdefault("ENABLE_CUDA_GRAPH_PRECAPTURE", "1")
 if len(sys.argv) > 1 and sys.argv[1] == "--nokernel":
@@ -20,9 +20,9 @@ import torch
 
 from aquatts import TTSInferencer
 
-PM = r"C:\VoiceLab\GPT-SoVITS\GPT_SoVITS\pretrained_models"
-REF = r"C:\VoiceLab\assets\ref.wav"
-REFTXT = open(r"C:\VoiceLab\assets\ref.txt", encoding="utf-8").read().strip()
+PM = r"C:\Local Repositories\PrivateVoice\GPT-SoVITS\GPT_SoVITS\pretrained_models"
+REF = r"C:\Local Repositories\PrivateVoice\assets\ref.wav"
+REFTXT = open(r"C:\Local Repositories\PrivateVoice\assets\ref.txt", encoding="utf-8").read().strip()
 
 print("torch", torch.__version__, "cuda", torch.version.cuda, flush=True)
 t0 = time.perf_counter()
@@ -65,6 +65,6 @@ dur = len(audio) / float(sr or 24000)
 print("total=%.1f ms audio=%.2fs rtf=%.2f chunks=%d peak=%.2f GB"
       % (total * 1000, dur, total / dur if dur else 0, len(parts),
          torch.cuda.max_memory_allocated() / 1024 ** 3), flush=True)
-os.makedirs(r"C:\VoiceLab\results", exist_ok=True)
-sf.write(r"C:\VoiceLab\results\smoke.wav", audio, int(sr or 24000))
+os.makedirs(r"C:\Local Repositories\PrivateVoice\results", exist_ok=True)
+sf.write(r"C:\Local Repositories\PrivateVoice\results\smoke.wav", audio, int(sr or 24000))
 print("wrote results/smoke.wav")

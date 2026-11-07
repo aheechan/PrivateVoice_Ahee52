@@ -11,7 +11,7 @@ ZH_EN = {
     "JSON 无效": "Invalid JSON",
     "LLM首token(ms)": "LLM TTFT(ms)",
     "TTS首包(ms)": "TTS first(ms)",
-    "VoiceLab 角色包 (*.vcp)": "VoiceLab character pack (*.vcp)",
+    "PrivateVoice 角色包 (*.vcp)": "PrivateVoice character pack (*.vcp)",
     "extra_body 必须是 JSON 对象。": "extra_body must be a JSON object.",
     "v4 扩散步数；越大越细腻但更慢，4 最快，8 更稳。": "v4 diffusion steps; higher is finer but slower (4 fastest, 8 steadier).",
     "上移": "Move up",

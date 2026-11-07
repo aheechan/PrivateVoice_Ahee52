@@ -6,7 +6,7 @@ import sys
 import time
 from pathlib import Path
 
-ROOT = Path(r"C:\VoiceLab")
+ROOT = Path(r"C:\Local Repositories\PrivateVoice")
 REPO = ROOT / "GPT-SoVITS"
 sys.path.insert(0, str(REPO))
 sys.path.insert(0, str(REPO / "GPT_SoVITS"))
@@ -20,8 +20,8 @@ from GPT_SoVITS.TTS_infer_pack.TTS import TTS, TTS_Config  # noqa: E402
 
 PM = REPO / "GPT_SoVITS" / "pretrained_models"
 TEXT = "今天有点累，不过见到你就好多了。晚上想吃点热乎的汤面，然后早点睡。"
-REF = r"C:\VoiceLab\characters\格雷丝-748caf\reference.wav"
-REF_TXT = Path(r"C:\VoiceLab\characters\格雷丝-748caf\reference.txt").read_text(
+REF = r"C:\Local Repositories\PrivateVoice\characters\格雷丝-748caf\reference.wav"
+REF_TXT = Path(r"C:\Local Repositories\PrivateVoice\characters\格雷丝-748caf\reference.txt").read_text(
     encoding="utf-8").strip()
 LORA = REPO / "SoVITS_weights_v4" / "vlab_格雷丝_e8_s200_l32.pth"
 GPT = REPO / "GPT_weights_v3" / "vlab_格雷丝-e8.ckpt"

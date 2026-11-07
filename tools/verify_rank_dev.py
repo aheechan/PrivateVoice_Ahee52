@@ -3,7 +3,7 @@ import sys
 import time
 from pathlib import Path
 
-sys.path.insert(0, r"C:\VoiceLab")
+sys.path.insert(0, r"C:\Local Repositories\PrivateVoice")
 from app.config import Config
 from app.core import train
 from app.core.characters import CharacterStore

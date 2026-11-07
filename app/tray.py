@@ -83,7 +83,7 @@ class TrayIcon(QSystemTrayIcon):
         self._progress_text = ""
         self._can_retry = False
         self.setIcon(make_icon("idle"))
-        self.setToolTip("VoiceLab — 待机")
+        self.setToolTip("PrivateVoice_Ahee52")
 
         self._menu = QMenu()
         self.retranslate()

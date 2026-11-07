@@ -10,7 +10,7 @@ import urllib.request
 import urllib.error
 
 MIRROR = "https://hf-mirror.com"
-ROOT = r"C:\VoiceLab"
+ROOT = r"C:\Local Repositories\PrivateVoice"
 PM = os.path.join(ROOT, "GPT-SoVITS", "GPT_SoVITS", "pretrained_models")
 LOG = os.path.join(ROOT, "logs", "weights.sha256")
 

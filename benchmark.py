@@ -12,7 +12,7 @@ with the Aqua README (top_k=5, top_p=1, temperature=0.6, speed=1.1,
 sample_steps=4, how_to_cut="按标点符号切", chunk_size_seconds=0.25).
 
 Usage:
-    set GPT_SOVITS_HOME=C:\\VoiceLab\\GPT-SoVITS
+    set GPT_SOVITS_HOME=C:\\Local Repositories\\PrivateVoice\\GPT-SoVITS
     python benchmark.py --group default
     python benchmark.py --group nokernel
     python benchmark.py --merge          # combine both groups into results/spike.json
@@ -32,7 +32,7 @@ from pathlib import Path
 os.environ.setdefault("PYTHONIOENCODING", "utf-8")
 os.environ.setdefault("PYTHONUTF8", "1")
 
-ROOT = Path(r"C:\VoiceLab")
+ROOT = Path(r"C:\Local Repositories\PrivateVoice")
 GPT_SOVITS = ROOT / "GPT-SoVITS"
 PM = GPT_SOVITS / "GPT_SoVITS" / "pretrained_models"
 GPT_CKPT = PM / "s1v3.ckpt"

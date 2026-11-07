@@ -4,7 +4,7 @@ from pathlib import Path
 
 import numpy as np
 
-ROOT = Path(r"C:\VoiceLab")
+ROOT = Path(r"C:\Local Repositories\PrivateVoice")
 sys.path.insert(0, str(ROOT))
 
 from app.config import Config  # noqa: E402

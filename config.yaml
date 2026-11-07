@@ -1,13 +1,13 @@
 profile: conservative
 paths:
-  models: C:\VoiceLab\GPT-SoVITS\GPT_SoVITS\pretrained_models
-  gpt_sovits: C:\VoiceLab\GPT-SoVITS
-  characters: C:\VoiceLab\characters
-  logs: C:\VoiceLab\logs
-  datasets: C:\VoiceLab\datasets
-  assets: C:\VoiceLab\assets
-  results: C:\VoiceLab\results
-  model_cache: C:\VoiceLab\models
+  models: C:\Local Repositories\PrivateVoice\GPT-SoVITS\GPT_SoVITS\pretrained_models
+  gpt_sovits: C:\Local Repositories\PrivateVoice\GPT-SoVITS
+  characters: C:\Local Repositories\PrivateVoice\characters
+  logs: C:\Local Repositories\PrivateVoice\logs
+  datasets: C:\Local Repositories\PrivateVoice\datasets
+  assets: C:\Local Repositories\PrivateVoice\assets
+  results: C:\Local Repositories\PrivateVoice\results
+  model_cache: C:\Local Repositories\PrivateVoice\models
 training:
   save_recent: 3
   oom_retries: 3

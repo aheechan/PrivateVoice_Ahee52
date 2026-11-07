@@ -4,7 +4,7 @@ import sys
 
 os.environ.setdefault("PYTHONIOENCODING", "utf-8")
 os.environ.setdefault("PYTHONUTF8", "1")
-os.environ["GPT_SOVITS_HOME"] = r"C:\VoiceLab\GPT-SoVITS"
+os.environ["GPT_SOVITS_HOME"] = r"C:\Local Repositories\PrivateVoice\GPT-SoVITS"
 os.environ.setdefault("ENABLE_CUDA_GRAPH", "1")
 os.chdir(os.environ["GPT_SOVITS_HOME"])
 
@@ -14,9 +14,9 @@ import torch
 
 from aquatts import TTSInferencer
 
-PM = r"C:\VoiceLab\GPT-SoVITS\GPT_SoVITS\pretrained_models"
-REF = r"C:\VoiceLab\assets\ref.wav"
-REFTXT = open(r"C:\VoiceLab\assets\ref.txt", encoding="utf-8").read().strip()
+PM = r"C:\Local Repositories\PrivateVoice\GPT-SoVITS\GPT_SoVITS\pretrained_models"
+REF = r"C:\Local Repositories\PrivateVoice\assets\ref.wav"
+REFTXT = open(r"C:\Local Repositories\PrivateVoice\assets\ref.txt", encoding="utf-8").read().strip()
 
 LINES = [
     "今天有点累",
@@ -54,5 +54,5 @@ for line in LINES:
     print("rendered %.2fs: %s" % (len(audio) / sr, line[:16]), flush=True)
 
 full = np.concatenate(pieces[:-1])
-sf.write(r"C:\VoiceLab\results\sample.wav", full, sr_out, subtype="PCM_16")
+sf.write(r"C:\Local Repositories\PrivateVoice\results\sample.wav", full, sr_out, subtype="PCM_16")
 print("wrote sample.wav  %.2fs @ %d Hz" % (len(full) / sr_out, sr_out))

@@ -338,7 +338,7 @@ class CharacterStore:
         manifest = {
             "magic": VCP_MAGIC,
             "vcp_version": VCP_VERSION,
-            "app": "VoiceLab Stage2",
+            "app": "PrivateVoice_Ahee52",
             "id": c.id,
             "name": c.name,
             "created_at": c.created_at,
@@ -374,7 +374,7 @@ class CharacterStore:
                 raise ValueError(f".vcp 缺少必要文件：{', '.join(missing)}")
             manifest = json.loads(z.read("manifest.json").decode("utf-8"))
             if manifest.get("magic") != VCP_MAGIC:
-                raise ValueError("不是 VoiceLab 角色包（magic 不匹配）")
+                raise ValueError("不是 PrivateVoice 角色包（magic 不匹配）")
             ver = int(manifest.get("vcp_version", 0))
             if ver > VCP_VERSION:
                 raise ValueError(

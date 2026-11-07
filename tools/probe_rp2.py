@@ -4,7 +4,7 @@ from pathlib import Path
 
 import numpy as np
 
-sys.path.insert(0, str(Path(r"C:\VoiceLab")))
+sys.path.insert(0, str(Path(r"C:\Local Repositories\PrivateVoice")))
 from app.config import Config  # noqa: E402
 from app.core.tts import make_engine  # noqa: E402
 

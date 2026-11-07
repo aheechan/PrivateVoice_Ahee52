@@ -3,7 +3,7 @@ import os
 import sys
 import time
 
-os.environ["MSVC_VCVARS64_PATH"] = r"C:\VoiceLab\tools\vs\VC\Auxiliary\Build\vcvars64.bat"
+os.environ["MSVC_VCVARS64_PATH"] = r"C:\Local Repositories\PrivateVoice\tools\vs\VC\Auxiliary\Build\vcvars64.bat"
 if len(sys.argv) > 1:
     os.environ["CUDA_HOME"] = sys.argv[1]
     os.environ["CUDA_PATH"] = sys.argv[1]

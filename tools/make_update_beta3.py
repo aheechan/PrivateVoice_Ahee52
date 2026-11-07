@@ -2,7 +2,7 @@
 import pathlib
 import shutil
 
-ROOT = pathlib.Path(r"C:\VoiceLab")
+ROOT = pathlib.Path(r"C:\Local Repositories\PrivateVoice")
 PKG = ROOT / "dist" / "Ahee52_PrivateVoice"
 HK = ROOT / "dist" / "update_beta3"
 

@@ -1,7 +1,7 @@
 """核对三个更新包是否都含 beta-3 的最终改动。"""
 import pathlib
 
-ROOT = pathlib.Path(r"C:\VoiceLab\dist")
+ROOT = pathlib.Path(r"C:\Local Repositories\PrivateVoice\dist")
 TARGETS = ["Ahee52_PrivateVoice", "update_beta3", "update_beta2", "update_beta2_hotfix5"]
 
 MARKERS = {
