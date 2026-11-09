@@ -149,8 +149,8 @@ PrivateVoice\
 │     ├─ s1v3.ckpt                                       148 MB
 │     ├─ gsv-v4-pretrained\s2Gv4.pth                     733 MB
 │     ├─ gsv-v4-pretrained\vocoder.pth                    55 MB
-│     ├─ chinese-roberta-wwm-ext-large\model.safetensors 621 MB
-│     └─ chinese-hubert-base\pytorch_model.bin           181 MB
+│     ├─ chinese-roberta-wwm-ext-large\pytorch_model.bin  621 MB
+│     └─ chinese-hubert-base\pytorch_model.bin           180 MB
 ├─ models_cache\
 │  ├─ modelscope\models\         ← 中文 ASR（FunASR 自动落盘）
 │  └─ whisper\faster-whisper-small\    ← 英文 / 多语 ASR（可选）
@@ -170,7 +170,7 @@ PrivateVoice\
 | `s2Gv4.pth` | v4 SoVITS | 733 MB | 同上仓库 `gsv-v4-pretrained/` | `…/pretrained_models/gsv-v4-pretrained/` |
 | `vocoder.pth` | 48 kHz 声码器 | 55 MB | 同上仓库 | 同上目录 |
 | `chinese-roberta-wwm-ext-large` | 文本前端 | 621 MB | [HF hfl](https://huggingface.co/hfl/chinese-roberta-wwm-ext-large) | `…/pretrained_models/chinese-roberta-wwm-ext-large/` |
-| `chinese-hubert-base` | 语义特征 | 181 MB | [HF TencentGameMate](https://huggingface.co/TencentGameMate/chinese-hubert-base) | `…/pretrained_models/chinese-hubert-base/` |
+| `chinese-hubert-base` | 语义特征 | 180 MB | [HF TencentGameMate](https://huggingface.co/TencentGameMate/chinese-hubert-base) | `…/pretrained_models/chinese-hubert-base/` |
 | `paraformer-zh` + `ct-punc` + `campplus` | **中文 ASR（默认）** | ≈1.2 GB | [ModelScope iic](https://modelscope.cn/models/iic/speech_seaco_paraformer_large_asr_nat-zh-cn-16k-common-vocab8404-pytorch) | 交给 FunASR 落到 `models_cache/modelscope/models/` |
 | `faster-whisper-small` | **英文 / 多语 ASR（可选）** | 484 MB | [HF Systran](https://huggingface.co/Systran/faster-whisper-small) | `models_cache/whisper/faster-whisper-small/` |
 

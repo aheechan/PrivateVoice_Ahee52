@@ -3,7 +3,7 @@
 ; 说明：包体约 12.6GB，为了构建速度这里不压缩；安装时直接复制。
 
 #define MyAppName "PrivateVoice_Ahee52"
-#define MyAppVersion "1.0.3"
+#define MyAppVersion "1.0.4"
 #define MyAppPublisher "VoiceLab"
 #define MyAppExeName "PrivateVoice_Ahee52.exe"
 
@@ -16,7 +16,7 @@ DefaultDirName={autopf}\PrivateVoice_Ahee52
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 OutputDir=C:\Local Repositories\PrivateVoice\dist\installer
-OutputBaseFilename=PrivateVoice_Ahee52-1.0.3-Setup
+OutputBaseFilename=PrivateVoice_Ahee52-1.0.4-Setup
 SetupIconFile=C:\Local Repositories\PrivateVoice\dist\app.ico
 UninstallDisplayIcon={app}\app.ico
 Compression=none

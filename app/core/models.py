@@ -38,19 +38,17 @@ COMMON: list[Asset] = [
     Asset("vocoder.pth",
           f"{HF}/lj1995/GPT-SoVITS/resolve/main/gsv-v4-pretrained/vocoder.pth",
           "GPT-SoVITS/GPT_SoVITS/pretrained_models/gsv-v4-pretrained/vocoder.pth", 55),
-    Asset("chinese-roberta-wwm-ext-large/model.safetensors",
-          f"{HF}/hfl/chinese-roberta-wwm-ext-large/resolve/main/model.safetensors",
-          "GPT-SoVITS/GPT_SoVITS/pretrained_models/chinese-roberta-wwm-ext-large/model.safetensors", 621),
+    Asset("chinese-roberta-wwm-ext-large/pytorch_model.bin",
+          f"{HF}/hfl/chinese-roberta-wwm-ext-large/resolve/main/pytorch_model.bin",
+          "GPT-SoVITS/GPT_SoVITS/pretrained_models/chinese-roberta-wwm-ext-large/pytorch_model.bin", 621),
     Asset("chinese-hubert-base/pytorch_model.bin",
           f"{HF}/TencentGameMate/chinese-hubert-base/resolve/main/pytorch_model.bin",
           "GPT-SoVITS/GPT_SoVITS/pretrained_models/chinese-hubert-base/pytorch_model.bin", 181),
 ]
 
-ASR_ZH: list[Asset] = [
-    Asset("paraformer-zh",
-          f"{HF}/funasr/paraformer-zh/resolve/main/model.pt",
-          "models_cache/funasr/paraformer-zh/model.pt", 840),
-]
+# 中文 ASR 由 FunASR 在首次识别时自行下载到 models_cache/modelscope/models/，
+# 这里不再重复下载（单个 model.pt 无法被 AutoModel 使用）。
+ASR_ZH: list[Asset] = []
 
 ASR_EN: list[Asset] = [
     Asset("whisper-small-ct2",
