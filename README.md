@@ -1,6 +1,6 @@
 # PrivateVoice_Ahee52
 
-**English** | [中文](README.ah.md)
+**English** | [中文](README.zh.md)
 
 **A fully local voice companion for Chinese speakers: local ASR, local LLM, GPT-SoVITS v4 voice cloning, optional web lookup.**
 
