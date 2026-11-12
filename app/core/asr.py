@@ -8,6 +8,7 @@ from __future__ import annotations
 import threading
 import time
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -66,13 +67,26 @@ class ASREngine:
             from faster_whisper import WhisperModel
 
             self._backend = "whisper"
-            self._model = WhisperModel(
-                self.cfg.get("whisper_size", "small"),
-                device=self.cfg.get("device", "cuda"),
-                compute_type="int8_float16",
-                download_root=self.cfg.get("whisper_root") or None,
-            )
-            return
+            size = str(self.cfg.get("whisper_size", "small"))
+            root = self.cfg.get("whisper_root") or None
+            # 优先使用随包分发的本地目录（models_cache/whisper/faster-whisper-small）
+            if not root:
+                root = str(Path(__file__).resolve().parents[2]
+                           / "models_cache" / "whisper")
+            local = Path(str(root)) / f"faster-whisper-{size}"
+            target: str = str(local) if (local / "model.bin").exists() else size
+            last: Exception | None = None
+            for device, compute in (("cuda", "float16"), ("cuda", "int8_float16"),
+                                    ("cpu", "int8")):
+                try:
+                    self._model = WhisperModel(target, device=device,
+                                               compute_type=compute,
+                                               download_root=str(root))
+                    self._whisper_device = device
+                    return
+                except Exception as exc:      # noqa: BLE001
+                    last = exc
+            raise RuntimeError(f"whisper 模型加载失败：{last}")
         self._backend = "funasr"
         from funasr import AutoModel
         self._model = AutoModel(
@@ -87,9 +101,12 @@ class ASREngine:
         t0 = _t.perf_counter()
         try:
             import soundfile as _sf  # noqa: F401
+            lang = str(self.cfg.get("language") or "").strip().lower()
             segments, info = self._model.transcribe(
-                samples.astype("float32"), language=None, beam_size=5,
-                vad_filter=True)
+                samples.astype("float32"),
+                language=None if lang in ("", "auto") else lang,
+                beam_size=5, vad_filter=True,
+                condition_on_previous_text=False)
             text = "".join(seg.text for seg in segments).strip()
             return ASRResult(text=text, confidence=0.9,
                              elapsed_ms=(_t.perf_counter() - t0) * 1000,
@@ -132,9 +149,12 @@ class ASREngine:
             return ASRResult(text="", confidence=0.0, speech_sec=speech_sec,
                              elapsed_ms=(time.perf_counter() - t0) * 1000,
                              error="too_short")
+        whisper_mode = str(self.cfg.get("model", "")).lower().startswith("whisper")
         with self._lock:
             try:
                 self._load()
+                if whisper_mode:
+                    return self._transcribe_whisper(y16, 16000)
                 out = self._model.generate(input=y16, batch_size_s=300)
             except Exception as exc:  # noqa: BLE001
                 return ASRResult(text="", confidence=0.0, speech_sec=speech_sec,

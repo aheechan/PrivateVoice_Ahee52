@@ -9,8 +9,8 @@
 Hold a hotkey, speak, and it answers in a cloned voice. Audio never leaves your machine.
 
 > Author: **Ahee52**
-> Status: **1.0.3** (first stable build)
-> Packaged build: **PrivateVoice_Ahee52-1.0.3** — installer + 7 slices, 10.85 GB
+> Status: **1.1.0**
+> Packaged build: **PrivateVoice_Ahee52-1.1.0** — installer + 7 slices, 11.4 GB
 > Install dir: `%ProgramFiles%\PrivateVoice_Ahee52`
 > Config / logs: `<install>\config.yaml`, `<install>\logs\app.log`
 > Models (installer): `<install>\GPT-SoVITS\GPT_SoVITS\pretrained_models`
@@ -207,12 +207,14 @@ Logs: `logs/app.log`.
 
 ## Chinese vs English ASR
 
-Two ASR routes are built in. **Pick one** — Chinese users take paraformer, English/multilingual users take whisper.
+Two ASR routes are built in **and both ship with the installer**. Switch in
+**Settings → Speech recognition** (restart to apply); Chinese users keep paraformer,
+English/multilingual users pick whisper.
 
 | | Chinese paraformer-zh | English whisper-small |
 |---|---|---|
 | Strength | Best Chinese accuracy, natural punctuation, speaker check | English / Japanese / Korean, mixed language |
-| Size | ≈1.2 GB | ≈484 MB |
+| Size | ≈1.2 GB | ≈461 MB |
 | VRAM | ≈0.8 GB | ≈1 GB |
 | Switch | “Chinese paraformer” in the wizard | “English / multilingual whisper” |
 

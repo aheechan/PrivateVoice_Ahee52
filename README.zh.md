@@ -9,8 +9,8 @@
 按住热键说话，它用克隆出来的声音回答你。音频不出本机。
 
 > 作者：**Ahee52**
-> 状态：**1.0.3**（首个稳定版）
-> 整合包：**PrivateVoice_Ahee52-1.0.3**，1 个安装器 + 7 个分卷，共 10.85 GB
+> 状态：**1.1.0**
+> 整合包：**PrivateVoice_Ahee52-1.1.0**，1 个安装器 + 7 个分卷，共 11.4 GB
 > 安装目录：`%ProgramFiles%\PrivateVoice_Ahee52`
 > 配置与日志：`<安装目录>\config.yaml`、`<安装目录>\logs\app.log`
 > 模型位置（安装版）：`<安装目录>\GPT-SoVITS\GPT_SoVITS\pretrained_models`
@@ -174,7 +174,7 @@ PrivateVoice\
 | `chinese-roberta-wwm-ext-large` | 文本前端 | 621 MB | [HF hfl](https://huggingface.co/hfl/chinese-roberta-wwm-ext-large) | `…/pretrained_models/chinese-roberta-wwm-ext-large/` |
 | `chinese-hubert-base` | 语义特征 | 180 MB | [HF TencentGameMate](https://huggingface.co/TencentGameMate/chinese-hubert-base) | `…/pretrained_models/chinese-hubert-base/` |
 | `paraformer-zh` + `ct-punc` + `campplus` | **中文 ASR（默认）** | ≈1.2 GB | [ModelScope iic](https://modelscope.cn/models/iic/speech_seaco_paraformer_large_asr_nat-zh-cn-16k-common-vocab8404-pytorch) | 交给 FunASR 落到 `models_cache/modelscope/models/` |
-| `faster-whisper-small` | **英文 / 多语 ASR（可选）** | 484 MB | [HF Systran](https://huggingface.co/Systran/faster-whisper-small) | `models_cache/whisper/faster-whisper-small/` |
+| `faster-whisper-small` | **英文 / 多语 ASR（已内置）** | 461 MB | [HF Systran](https://huggingface.co/Systran/faster-whisper-small) | `models_cache/whisper/faster-whisper-small/` |
 
 ### 4. 运行
 
@@ -205,12 +205,13 @@ python tools/check_character.py 默认音色   # 角色文件与权重是否齐�
 
 ## 中英文 ASR 怎么选
 
-程序内置两条 ASR 路线，**选一条即可**：中文用户选 paraformer，英文或多语用户选 whisper。
+程序内置两条 ASR 路线，**整合包两者都已包含**。在「设置 → 语音识别」切换，重启后生效：
+中文用户用 paraformer，英文或多语用户选 whisper。
 
 | | 中文 paraformer-zh | English whisper-small |
 |---|---|---|
 | 优势 | 中文识别最准、标点自然、带说话人校验 | 英文 / 日文 / 韩文可用，支持混说 |
-| 体积 | ≈1.2 GB | ≈484 MB |
+| 体积 | ≈1.2 GB | ≈461 MB |
 | 显存 | ≈0.8 GB | ≈1 GB |
 | 切换方式 | 向导里选「中文 paraformer」 | 选「English / 多语 whisper」 |
 

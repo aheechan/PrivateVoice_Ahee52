@@ -24,6 +24,7 @@ def main() -> None:
         ("GitHub 社交预览 1280×640", "social_preview.png", 640),
         ("README 头图", "readme_header.png", 640),
         ("图标尺寸 256→16", "preview_icon_sizes.png", 640),
+        ("设置 · 语音识别（中/英 ASR）", "preview_settings_asr.png", 470),
     ]
     pad, label_h, cols = 34, 58, 2
     rows = (len(items) + 1) // cols

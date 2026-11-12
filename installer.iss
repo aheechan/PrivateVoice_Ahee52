@@ -3,7 +3,7 @@
 ; 说明：包体约 12.6GB，为了构建速度这里不压缩；安装时直接复制。
 
 #define MyAppName "PrivateVoice_Ahee52"
-#define MyAppVersion "1.0.5"
+#define MyAppVersion "1.1.0"
 #define MyAppPublisher "VoiceLab"
 #define MyAppExeName "PrivateVoice_Ahee52.exe"
 
@@ -16,7 +16,7 @@ DefaultDirName={autopf}\PrivateVoice_Ahee52
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 OutputDir=C:\Local Repositories\PrivateVoice\dist\installer
-OutputBaseFilename=PrivateVoice_Ahee52-1.0.5-Setup
+OutputBaseFilename=PrivateVoice_Ahee52-1.1.0-Setup
 SetupIconFile=C:\Local Repositories\PrivateVoice\dist\app.ico
 WizardImageFile=C:\Local Repositories\PrivateVoice\assets\wizard_image.bmp
 WizardSmallImageFile=C:\Local Repositories\PrivateVoice\assets\wizard_small.bmp
@@ -35,7 +35,13 @@ PrivilegesRequired=admin
 DisableDirPage=no
 
 [Languages]
-Name: "chinese"; MessagesFile: "compiler:Default.isl"
+Name: "english"; MessagesFile: "compiler:Default.isl"
+Name: "chinesesimplified"; MessagesFile: "installer\ChineseSimplified.isl"
+
+[Messages]
+english.WelcomeLabel2=Setup will install [name/ver] on your computer.%n%nEverything runs locally: speech recognition, speech synthesis and the conversation itself. The installer already ships the default voice and every model, so you can talk right after installation.
+english.FinishedLabel=[name] is installed. Audio stays on this machine — no account, no cloud.
+english.FinishedHeadingLabel=[name] is ready
 
 [Tasks]
 Name: "desktopicon"; Description: "创建桌面快捷方式"; GroupDescription: "快捷方式："

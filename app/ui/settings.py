@@ -157,6 +157,32 @@ class SettingsDialog(QDialog):
         form2.addRow("", self.btn_open_tts)
         root.addWidget(gb_audio)
 
+        gb_asr = QGroupBox(tz("语音识别"))
+        form_asr = QFormLayout(gb_asr)
+        self.asr_box = QComboBox()
+        self.asr_box.addItem(tz("中文 paraformer（默认）"), "paraformer-zh")
+        self.asr_box.addItem(tz("English / 多语 whisper"), "whisper")
+        cur = str(self.config.get("asr.model", "paraformer-zh"))
+        self.asr_box.setCurrentIndex(0 if not cur.startswith("whisper") else 1)
+        form_asr.addRow(tz("识别模型"), self.asr_box)
+        self.asr_hint = QLabel("")
+        self.asr_hint.setObjectName("Muted")
+        self.asr_hint.setWordWrap(True)
+        form_asr.addRow("", self.asr_hint)
+
+        self.asr_lang = QComboBox()
+        for label, code in ((tz("自动检测"), "auto"), ("English", "en"),
+                            ("中文", "zh"), ("日本語", "ja"), ("한국어", "ko")):
+            self.asr_lang.addItem(label, code)
+        _lang = str(self.config.get("asr.language", "auto"))
+        _idx = self.asr_lang.findData(_lang)
+        self.asr_lang.setCurrentIndex(_idx if _idx >= 0 else 0)
+        form_asr.addRow(tz("识别语言"), self.asr_lang)
+        form_asr.addRow("", QLabel(tz("仅 whisper 路线使用；paraformer 固定中文。")))
+        self.asr_box.currentIndexChanged.connect(self._update_asr_hint)
+        root.addWidget(gb_asr)
+        self._update_asr_hint()
+
         gb_ui = QGroupBox(tz("交互与日志"))
         form3 = QFormLayout(gb_ui)
         self.hotkey = HotkeyEdit(str(cfg_spec(self.config)))
@@ -210,6 +236,23 @@ class SettingsDialog(QDialog):
         self.save_tts.setChecked(bool(cfg.get("audio.save_tts", True)))
         self.web_enabled.setChecked(bool(cfg.get("web.enabled", False)))
 
+    def _update_asr_hint(self) -> None:
+        model = self.asr_box.currentData()
+        whisper_dir = Path(self.config.path_of("model_cache")) / "whisper" / "faster-whisper-small"
+        has_whisper = (whisper_dir / "model.bin").exists()
+        if str(model).startswith("whisper"):
+            if has_whisper:
+                self.asr_hint.setText(tz("英文/多语模型已就绪。切换后需重启程序生效；首次使用会占用约 1 GB 显存。"))
+                self.asr_hint.setStyleSheet("color:#7dd3a0;font-size:12px;")
+            else:
+                self.asr_hint.setText(
+                    tz("缺少 whisper 模型（models_cache\\whisper\\faster-whisper-small）。"
+                       "可用安装向导里的「下载缺失模型」，或手动放入后重启。"))
+                self.asr_hint.setStyleSheet("color:#e0a458;font-size:12px;")
+        else:
+            self.asr_hint.setText(tz("中文识别最准，标点自然，默认推荐。"))
+            self.asr_hint.setStyleSheet("color:#8f83ad;font-size:12px;")
+
     def _save(self) -> None:
         cfg = self.config
         cfg.set("profile", self.profile_box.currentData())
@@ -222,6 +265,8 @@ class SettingsDialog(QDialog):
         cfg.set("audio.output_device", self.out_box.currentData())
         cfg.set("audio.save_tts", self.save_tts.isChecked())
         cfg.set("web.enabled", self.web_enabled.isChecked())
+        cfg.set("asr.model", self.asr_box.currentData())
+        cfg.set("asr.language", self.asr_lang.currentData())
         try:
             from app.main import install_autostart
             install_autostart(self.autostart.isChecked())
