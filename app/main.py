@@ -715,6 +715,14 @@ def install_autostart(enabled: bool) -> None:
         logging.getLogger("voicelab").warning("写入开机自启失败", exc_info=True)
 
 
+def app_icon_path() -> Path:
+    for name in ("app_256.png", "app_64.png", "app.ico"):
+        p = ROOT / "assets" / name
+        if p.exists():
+            return p
+    return ROOT / "assets" / "app.ico"
+
+
 def main() -> int:
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
@@ -747,7 +755,8 @@ def main() -> int:
     if any(ord(ch) > 127 for ch in str(ROOT)):
         log.warning("安装路径包含非 ASCII 字符：%s", ROOT)
 
-    app.setWindowIcon(make_icon("idle"))
+    _icon = QIcon(str(app_icon_path()))
+    app.setWindowIcon(_icon if not _icon.isNull() else make_icon("idle"))
     try:
         from app.ui import theme
         theme.apply(app)

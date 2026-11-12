@@ -2,6 +2,8 @@
 
 [English](README.md) | **中文**
 
+![PrivateVoice_Ahee52](docs/assets/readme_header.png)
+
 **完全本地运行的中文情感陪伴器：本地 ASR、本地大模型、GPT-SoVITS v4 音色克隆，可选联网检索。**
 
 按住热键说话，它用克隆出来的声音回答你。音频不出本机。

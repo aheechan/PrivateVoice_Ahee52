@@ -35,7 +35,35 @@ STATE_LABELS = {
 }
 
 
+def _brand_pixmap(state: str, size: int) -> QPixmap | None:
+    """品牌图标（气泡声波）+ 右下角状态圆点。"""
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    for name in ("app_256.png", "app_64.png"):
+        p = root / "assets" / name
+        if not p.exists():
+            continue
+        base = QPixmap(str(p)).scaled(size, size, Qt.KeepAspectRatio,
+                                      Qt.SmoothTransformation)
+        if state == "idle":
+            return base
+        pm = QPixmap(base)
+        pt = QPainter(pm)
+        pt.setRenderHint(QPainter.Antialiasing, True)
+        pt.setBrush(QColor(STATE_COLORS.get(state, STATE_COLORS["idle"])))
+        pt.setPen(QPen(QColor("#FFFFFF"), max(1.0, size / 32)))
+        r = size * 0.32
+        pt.drawEllipse(QRectF(size - r - size * 0.04, size - r - size * 0.04, r, r))
+        pt.end()
+        return pm
+    return None
+
+
 def make_icon(state: str = "idle", size: int = 64) -> QIcon:
+    brand = _brand_pixmap(state, size)
+    if brand is not None:
+        return QIcon(brand)
     pm = QPixmap(size, size)
     pm.fill(Qt.transparent)
     p = QPainter(pm)
