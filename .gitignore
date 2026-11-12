@@ -1,4 +1,4 @@
-# 环境与缓存
+﻿# 环境与缓存
 .venv/
 .uvcache/
 wheels/
@@ -26,3 +26,4 @@ tools/vs/
 # 打包产物（9.5GB，不进仓库）
 dist/
 
+build/
