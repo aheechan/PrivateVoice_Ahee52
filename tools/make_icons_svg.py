@@ -34,20 +34,24 @@ def render_svg(size: int) -> Image.Image:
     arr = np.frombuffer(ptr, np.uint8, count=img.sizeInBytes()).reshape((size, size, 4))
     im = Image.fromarray(arr[:, :, [2, 1, 0, 3]].copy(), "RGBA")
 
-    # SVG 自带浅色方形底：裁到紫色圆角块，再用圆角 alpha 去掉白边
+    # 只保留紫色圆角块：按高饱和像素取包围盒，再用圆角遮罩切掉浅色描边
     rgb = np.asarray(im.convert("RGB"), np.int16)
     mx, mn = rgb.max(axis=2), rgb.min(axis=2)
-    strong = ((mx - mn) > 45) & (mx > 110)
-    ys, xs = np.where(strong)
+    solid = ((mx - mn) > 70) & (mx > 130)
+    ys, xs = np.where(solid)
     if xs.size:
         x0, x1, y0, y1 = int(xs.min()), int(xs.max()), int(ys.min()), int(ys.max())
+        inset = max(2, int(size * 0.004))
+        x0, y0, x1, y1 = x0 + inset, y0 + inset, x1 - inset, y1 - inset
         side = max(x1 - x0 + 1, y1 - y0 + 1)
         cx, cy = (x0 + x1) // 2, (y0 + y1) // 2
         box = (cx - side // 2, cy - side // 2, cx + side // 2, cy + side // 2)
         im = im.crop(box).resize((size, size), Image.LANCZOS)
+        pad = max(4, int(size * 0.028))
         mask = Image.new("L", (size, size), 0)
         ImageDraw.Draw(mask).rounded_rectangle(
-            [1, 1, size - 2, size - 2], radius=int(size * 0.225), fill=255)
+            [pad, pad, size - 1 - pad, size - 1 - pad],
+            radius=int((size - 2 * pad) * 0.175), fill=255)
         im.putalpha(mask)
     return im
 
