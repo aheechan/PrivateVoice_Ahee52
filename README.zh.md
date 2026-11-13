@@ -227,6 +227,24 @@ asr:
 
 ---
 
+
+### 语言跟随
+
+回复语言跟随你实际说的语言：中文→中文，英文→英文，日文/韩文同理。
+指令同时追加在 system prompt 末尾和 user 轮，避免中文人设把回答拉回中文。
+
+### 以后升级 ASR 模型
+
+安装包内置 `faster-whisper small`。如果想更准：
+
+| 方案 | 体积 | 说明 |
+|---|---|---|
+| SenseVoice-Small（FunASR） | 约 500 MB | 中英日韩粤，比 whisper-small 更快更准——推荐 |
+| faster-whisper large-v3-turbo | 约 1.6 GB | 英文/多语明显更准，GPU 上仍很快 |
+| Whisper large-v3 / Qwen3-ASR | 3–6 GB | 最准但延迟和显存最高 |
+
+模型放到 `models_cache/whisper/<名字>`，并把 `asr.whisper_size` 改成对应名字即可。
+
 ## 功能概览
 
 - **按住说话**：默认 `shift+a`，可改成任意组合键（也支持单按 Shift）
