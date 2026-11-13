@@ -56,7 +56,7 @@ def installer_preview() -> None:
     d.text((x, y), "欢迎使用 PrivateVoice_Ahee52 安装向导",
            font=font("msyh.ttc", 27), fill=(38, 30, 60))
     y += 54
-    for line in ("现在将安装 PrivateVoice_Ahee52 1.1.0 到你的电脑。",
+    for line in ("现在将安装 PrivateVoice_Ahee52 1.1.1 到你的电脑。",
                  "本程序完全本地运行：语音识别、语音合成与对话都在本机完成。",
                  "安装包已内置默认音色与全部模型，安装后即可对话。",
                  ""):
@@ -85,7 +85,7 @@ def installer_preview() -> None:
     btn2 = [W - 208, H - 56, W - 100, H - 18]
     d.rounded_rectangle(btn2, radius=5, fill=(255, 255, 255), outline=(180, 172, 200))
     d.text((btn2[0] + 26, btn2[1] + 8), "取消", font=font("msyh.ttc", 15), fill=(60, 52, 84))
-    d.text((26, H - 50), "PrivateVoice_Ahee52 1.1.0", font=font("segoeui.ttf", 13),
+    d.text((26, H - 50), "PrivateVoice_Ahee52 1.1.1", font=font("segoeui.ttf", 13),
            fill=(185, 180, 200))
     im.save(OUT / "preview_installer.png")
     print("installer preview saved")
