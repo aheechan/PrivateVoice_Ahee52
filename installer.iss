@@ -3,7 +3,7 @@
 ; 说明：包体约 12.6GB，为了构建速度这里不压缩；安装时直接复制。
 
 #define MyAppName "PrivateVoice_Ahee52"
-#define MyAppVersion "1.1.0"
+#define MyAppVersion "1.1.1"
 #define MyAppPublisher "VoiceLab"
 #define MyAppExeName "PrivateVoice_Ahee52.exe"
 
@@ -16,7 +16,7 @@ DefaultDirName={autopf}\PrivateVoice_Ahee52
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 OutputDir=C:\Local Repositories\PrivateVoice\dist\installer
-OutputBaseFilename=PrivateVoice_Ahee52-1.1.0-Setup
+OutputBaseFilename=PrivateVoice_Ahee52-1.1.1-Setup
 SetupIconFile=C:\Local Repositories\PrivateVoice\dist\app.ico
 WizardImageFile=C:\Local Repositories\PrivateVoice\assets\wizard_image.bmp
 WizardSmallImageFile=C:\Local Repositories\PrivateVoice\assets\wizard_small.bmp
@@ -52,15 +52,16 @@ Source: "C:\Local Repositories\PrivateVoice\dist\PrivateVoice_Ahee52\*"; DestDir
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\runtime\pythonw.exe"; \
-  Parameters: """{app}\app\main.py"""; WorkingDir: "{app}"; IconFilename: "{app}\app.ico"
+  Parameters: """{app}\app\main.py"""; WorkingDir: "{app}"; IconFilename: "{app}\app.ico"; IconIndex: 0
 Name: "{group}\自检"; Filename: "{app}\runtime\python.exe"; \
   Parameters: """{app}\tools\selftest.py"""; WorkingDir: "{app}"
 Name: "{group}\使用说明"; Filename: "{app}\使用说明.txt"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\runtime\pythonw.exe"; \
-  Parameters: """{app}\app\main.py"""; WorkingDir: "{app}"; IconFilename: "{app}\app.ico"; \
+  Parameters: """{app}\app\main.py"""; WorkingDir: "{app}"; IconFilename: "{app}\app.ico"; IconIndex: 0; \
   Tasks: desktopicon
 
 [Run]
+Filename: "{sys}\ie4uinit.exe"; Parameters: "-show"; Flags: runhidden skipifdoesntexist
 Filename: "{app}\runtime\python.exe"; Parameters: """{app}\tools\selftest.py"""; \
   Description: "安装完成后立即自检（约 40 秒）"; Flags: postinstall nowait skipifsilent
 

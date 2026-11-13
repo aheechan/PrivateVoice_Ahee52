@@ -122,12 +122,10 @@ def wizard_image() -> None:
     d = ImageDraw.Draw(im)
     d.text((W / 2, 266), "PrivateVoice_Ahee52", font=font("segoeuib.ttf", 27),
            fill=(240, 235, 255), anchor="ma")
-    d.text((W / 2, 306), "本地 · 私有 · 陪伴", font=font("msyh.ttc", 21),
-           fill=(178, 166, 210), anchor="ma")
-    d.line([(W * 0.32, 348), (W * 0.68, 348)], fill=(118, 102, 168), width=2)
-    d.text((W / 2, 372), "Your voice stays here.", font=font("segoeui.ttf", 17),
+    d.line([(W * 0.32, 344), (W * 0.68, 344)], fill=(118, 102, 168), width=2)
+    d.text((W / 2, 372), "Private voice stays here.", font=font("segoeui.ttf", 17),
            fill=(150, 138, 184), anchor="ma")
-    d.text((W / 2, H - 46), "v1.1.0", font=font("segoeui.ttf", 16),
+    d.text((W / 2, H - 46), "v1.1.1", font=font("segoeui.ttf", 16),
            fill=(118, 108, 148), anchor="ma")
     im.convert("RGB").resize((164, 314), Image.LANCZOS).save(OUT / "installer_wizard.png")
     im.convert("RGB").save(ASSETS / "wizard_image.bmp")

@@ -13,6 +13,7 @@ import threading
 from pathlib import Path
 
 from PySide6.QtCore import QObject, Qt, Signal
+from PySide6.QtGui import QIcon
 from PySide6.QtNetwork import QLocalServer, QLocalSocket
 from PySide6.QtWidgets import QApplication, QMessageBox, QSystemTrayIcon
 
@@ -723,7 +724,24 @@ def app_icon_path() -> Path:
     return ROOT / "assets" / "app.ico"
 
 
+def _install_excepthook() -> None:
+    """未捕获异常写进日志并提示用户，避免 pythonw 下无声退出。"""
+    def hook(exc_type, exc, tb) -> None:
+        logging.getLogger("voicelab").error("未捕获异常", exc_info=(exc_type, exc, tb))
+        try:
+            QMessageBox.critical(
+                None, APP_NAME,
+                f"程序遇到未处理的错误：\n\n{exc_type.__name__}: {exc}\n\n"
+                f"详情见 logs\\app.log")
+        except Exception:
+            pass
+        sys.__excepthook__(exc_type, exc, tb)
+
+    sys.excepthook = hook
+
+
 def main() -> int:
+    _install_excepthook()
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
 
