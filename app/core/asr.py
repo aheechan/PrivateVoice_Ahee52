@@ -102,12 +102,18 @@ class ASREngine:
         try:
             import soundfile as _sf  # noqa: F401
             lang = str(self.cfg.get("language") or "").strip().lower()
-            segments, info = self._model.transcribe(
-                samples.astype("float32"),
-                language=None if lang in ("", "auto") else lang,
-                beam_size=5, vad_filter=True,
-                condition_on_previous_text=False)
-            text = _polish_latin("".join(seg.text for seg in segments))
+            lang_arg = None if lang in ("", "auto") else lang
+            text = ""
+            for use_vad in (True, False):
+                segments, info = self._model.transcribe(
+                    samples.astype("float32"), language=lang_arg,
+                    beam_size=5, vad_filter=use_vad,
+                    condition_on_previous_text=False,
+                    no_speech_threshold=0.5,
+                    log_prob_threshold=-1.0)
+                text = _polish_latin("".join(seg.text for seg in segments))
+                if text.strip():
+                    break
             return ASRResult(text=text, confidence=0.9,
                              elapsed_ms=(_t.perf_counter() - t0) * 1000,
                              error="")

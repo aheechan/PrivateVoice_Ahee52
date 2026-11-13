@@ -24,7 +24,7 @@ class ProviderDialog(QDialog):
 
     def __init__(self, provider: Provider | None = None, parent=None):
         super().__init__(parent)
-        self.setWindowTitle(tz("编辑 Provider") if provider else "新增 Provider")
+        self.setWindowTitle(tz("编辑 Provider") if provider else tz("新增 Provider"))
         self.resize(520, 420)
         self._provider = provider
         self._api_key: str = ""       # 明文只存在内存，落盘前加密
@@ -60,7 +60,7 @@ class ProviderDialog(QDialog):
         form.addRow("Base URL", self.base_url)
         form.addRow(tz("模型名"), self.model)
         form.addRow(tz("优先级（小优先）"), self.priority)
-        form.addRow(tz(超时 (ms)), self.timeout)
+        form.addRow(tz("超时 (ms)"), self.timeout)
         form.addRow("API Key", self.key)
         form.addRow("", self.enabled)
         form.addRow("", self.stream)
@@ -117,6 +117,24 @@ class SettingsLLM(QDialog):
         self.resize(980, 520)
         self._build()
         self.refresh()
+
+    def showEvent(self, event):  # noqa: N802
+        try:
+            from app.ui.wizard import translate_tree
+
+            translate_tree(self)
+        except Exception:
+            pass
+        super().showEvent(event)
+
+    def showEvent(self, event):  # noqa: N802
+        try:
+            from app.ui.wizard import translate_tree
+
+            translate_tree(self)
+        except Exception:
+            pass
+        super().showEvent(event)
 
     def _build(self) -> None:
         root = QVBoxLayout(self)

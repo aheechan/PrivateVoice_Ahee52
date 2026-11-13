@@ -9,8 +9,8 @@
 Hold a hotkey, speak, and it answers in a cloned voice. Audio never leaves your machine.
 
 > Author: **Ahee52**
-> Status: **1.0.4**
-> Packaged build: **PrivateVoice_Ahee52-1.0.4** — installer + 7 slices, 11.5 GB
+> Status: **1.0.5**
+> Packaged build: **PrivateVoice_Ahee52-1.0.5** — installer + 7 slices, 11.5 GB
 > Install dir: `%ProgramFiles%\PrivateVoice_Ahee52`
 > Config / logs: `<install>\config.yaml`, `<install>\logs\app.log`
 > Models (installer): `<install>\GPT-SoVITS\GPT_SoVITS\pretrained_models`

@@ -221,6 +221,14 @@ class SettingsDialog(QDialog):
         btn.accepted.connect(self._save)
         btn.rejected.connect(self.reject)
         root.addWidget(btn)
+        try:
+            from PySide6.QtCore import QTimer
+
+            from app.ui.wizard import translate_tree
+
+            QTimer.singleShot(0, lambda: translate_tree(self))
+        except Exception:
+            pass
         self.profile_box.currentIndexChanged.connect(self._update_hint)
 
     def _open_tts_dir(self) -> None:

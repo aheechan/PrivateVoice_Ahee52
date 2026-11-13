@@ -444,7 +444,8 @@ class Pipeline:
             return
         sr_rec = int(getattr(self.recorder, "samplerate", 48000))
         if data is None or len(data) < sr_rec * 0.03:
-            self._emit("error", text="没听清，再说一次")
+            self._emit("error", text=self._prompt("没听清，再说一次",
+                                                  "I didn't catch that — say it again?"))
             self._set_state(State.IDLE)
             return
         self._t_release = t
@@ -576,6 +577,13 @@ class Pipeline:
         s = re.sub(r"\.{3,}", "...", s)
         return s
 
+    @staticmethod
+    def _prompt(zh: str, en: str) -> str:
+        """状态提示跟随界面语言（中文界面中文，英文界面英文）。"""
+        from app import i18n
+
+        return en if i18n.get_lang() == "en" else zh
+
     def _messages(self, user_text: str) -> list[dict[str, str]]:
         ch = self.character
         template = ""
@@ -661,7 +669,8 @@ class Pipeline:
                 res = self.asr.transcribe(y16)
                 self._t_asr = time.perf_counter()
                 if not res.ok:
-                    self._emit("error", text="没听清，再说一次")
+                    self._emit("error", text=self._prompt("没听清，再说一次",
+                                                  "I didn't catch that — say it again?"))
                     self._emit("turn_done", detail="asr_empty")
                     self._set_state(State.IDLE)
                     self.metrics.append(m)

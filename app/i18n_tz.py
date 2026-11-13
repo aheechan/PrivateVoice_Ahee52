@@ -274,3 +274,18 @@ ZH_EN.update({
     "她见到你时说的第一句话": "Her first line when she meets you",
     "她是谁、怎么说话、边界在哪。例如：25 岁插画师，说话轻、句子短，习惯用“嗯”开头，会关心对方有没有吃饭，但不追问隐私。": "Who she is, how she talks, where the limits are. e.g. a 25-year-old illustrator: soft voice, short sentences, starts with 'mm', asks if you ate, never pushes on privacy."
 })
+
+ZH_EN.update({
+    "语音识别": "Speech recognition",
+    "识别模型": "ASR model",
+    "识别语言": "Recognition language",
+    "自动检测": "Auto detect",
+    "中文 paraformer（默认）": "Chinese paraformer (default)",
+    "English / 多语 whisper": "English / multilingual whisper",
+    "仅 whisper 路线使用；paraformer 固定中文。": "Only used by the whisper route; paraformer is Chinese-only.",
+    "中文识别最准，标点自然，默认推荐。": "Best Chinese accuracy with natural punctuation. Recommended.",
+    "英文/多语模型已就绪。切换后需重启程序生效；首次使用会占用约 1 GB 显存。": "English/multilingual model is ready. Restart to apply; ~1 GB VRAM on first use.",
+    "缺少 whisper 模型（models_cache\\whisper\\faster-whisper-small）。可用安装向导里的「下载缺失模型」，或手动放入后重启。": "whisper model missing (models_cache/whisper/faster-whisper-small). Download it or copy it manually, then restart.",
+    "新增 Provider": "New provider",
+    "编辑 Provider": "Edit provider"
+})

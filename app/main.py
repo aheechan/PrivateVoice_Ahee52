@@ -582,10 +582,21 @@ class MainController(QObject):
             self._settings = SettingsDialog(self.config)
             self._settings.applied.connect(self._on_settings_applied)
             self._settings.closed.connect(self._on_settings_closed)
+        # 暂停全局热键：否则录制 shift+a 时会被全局热键截走
+        try:
+            if self.hotkey is not None:
+                self.hotkey.stop()
+                self.hotkey = None
+        except Exception:
+            pass
         self._settings.show()
         self._settings.raise_()
 
     def _on_settings_closed(self) -> None:
+        try:
+            self._start_hotkey()
+        except Exception:
+            pass
         self._settings = None
 
     def _on_settings_applied(self) -> None:
