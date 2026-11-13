@@ -256,7 +256,8 @@ class SettingsDialog(QDialog):
 
     def _update_asr_hint(self) -> None:
         model = self.asr_box.currentData()
-        whisper_dir = self.config.root / "models_cache" / "whisper" / "faster-whisper-small"
+        app_root = Path(self.config.path_of("gpt_sovits")).parent
+        whisper_dir = app_root / "models_cache" / "whisper" / "faster-whisper-small"
         has_whisper = (whisper_dir / "model.bin").exists()
         if str(model).startswith("whisper"):
             if has_whisper:

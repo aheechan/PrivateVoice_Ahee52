@@ -47,9 +47,9 @@ Source: "C:\Local Repositories\PrivateVoice\dist\PrivateVoice_Ahee52\*"; DestDir
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\runtime\pythonw.exe"; \
   Parameters: """{app}\app\main.py"""; WorkingDir: "{app}"; IconFilename: "{app}\app.ico"; IconIndex: 0
-Name: "{group}\自检"; Filename: "{app}\runtime\python.exe"; \
+Name: "{group}\Self-test"; Filename: "{app}\runtime\python.exe"; \
   Parameters: """{app}\tools\selftest.py"""; WorkingDir: "{app}"
-Name: "{group}\使用说明"; Filename: "{app}\使用说明.txt"
+Name: "{group}\Read me"; Filename: "{app}\README.txt"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\runtime\pythonw.exe"; \
   Parameters: """{app}\app\main.py"""; WorkingDir: "{app}"; IconFilename: "{app}\app.ico"; IconIndex: 0; \
   Tasks: desktopicon
@@ -57,7 +57,7 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\runtime\pythonw.exe"; \
 [Run]
 Filename: "{sys}\ie4uinit.exe"; Parameters: "-show"; Flags: runhidden skipifdoesntexist
 Filename: "{app}\runtime\python.exe"; Parameters: """{app}\tools\selftest.py"""; \
-  Description: "安装完成后立即自检（约 40 秒）"; Flags: postinstall nowait skipifsilent
+  Description: "Run the self-test after installation (~40 s)"; Flags: postinstall nowait skipifsilent
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}\logs"

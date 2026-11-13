@@ -544,6 +544,38 @@ class Pipeline:
             return True
         return websearch.needs_search(user_text)
 
+    @staticmethod
+    def _reply_language(text: str) -> str:
+        """粗略判断用户这句的语言：zh / en / ja / ko。"""
+        import re
+
+        if not text:
+            return "zh"
+        if re.search(r"[\u3040-\u30ff]", text):
+            return "ja"
+        if re.search(r"[\uac00-\ud7af]", text):
+            return "ko"
+        latin = len(re.findall(r"[A-Za-z]", text))
+        han = len(re.findall(r"[\u4e00-\u9fff]", text))
+        if latin >= 3 and latin > han:
+            return "en"
+        return "zh"
+
+    @staticmethod
+    def _polish_reply(text: str) -> str:
+        import re
+
+        s = text.strip()
+        if not s:
+            return s
+        if not re.search(r"[A-Za-z]", s):
+            return s
+        s = re.sub(r"[ \t]+", " ", s)
+        s = re.sub(r"\s+([,.!?;:])", r"\1", s)
+        s = re.sub(r"([,.!?;:])(?=[A-Za-z])", r"\1 ", s)
+        s = re.sub(r"\.{3,}", "...", s)
+        return s
+
     def _messages(self, user_text: str) -> list[dict[str, str]]:
         ch = self.character
         template = ""
@@ -582,6 +614,15 @@ class Pipeline:
                     self._web_sources = [r["url"] for r in results]
             except Exception as exc:  # noqa: BLE001
                 logger.warning("联网检索失败（忽略）：%s", exc)
+        lang = self._reply_language(user_text)
+        lang_rule = {
+            "en": "Reply ONLY in natural English. Keep spaces between words, use normal "
+                  "punctuation, 1-3 short sentences.",
+            "ja": "日本語でだけ返答してください。自然な句読点を使い、1〜3文で短く。",
+            "ko": "한국어로만 답하세요. 자연스러운 문장부호를 사용하고 1~3문장으로 짧게.",
+        }.get(lang)
+        if lang_rule:
+            sys_text += f"\n\n【语言】{lang_rule}\nDo not mix Chinese."
         style = self._style()
         if style.get("hint"):
             sys_text += f"\n\n【本轮情绪】{style['name']}：{style['hint']}"
@@ -720,7 +761,7 @@ class Pipeline:
             m.t_play_start = self.player.t_play_start or 0.0
             m.t_asr_done = self._t_asr
             m.provider = provider
-            reply = clean_for_tts("".join(reply_parts))
+            reply = clean_for_tts(self._polish_reply("".join(reply_parts)))
             m.reply_len = len(reply)
             m.audio_sec = round((m.t_play_end - (m.t_play_start or m.t_play_end)), 3)
             if self.player.underruns:

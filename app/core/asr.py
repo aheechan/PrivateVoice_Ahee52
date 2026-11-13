@@ -107,7 +107,7 @@ class ASREngine:
                 language=None if lang in ("", "auto") else lang,
                 beam_size=5, vad_filter=True,
                 condition_on_previous_text=False)
-            text = "".join(seg.text for seg in segments).strip()
+            text = _polish_latin("".join(seg.text for seg in segments))
             return ASRResult(text=text, confidence=0.9,
                              elapsed_ms=(_t.perf_counter() - t0) * 1000,
                              error="")
@@ -185,6 +185,27 @@ class ASREngine:
     def model(self):
         self._load()
         return self._model
+
+
+def _polish_latin(text: str) -> str:
+    """英文/日韩混排时保住空格与标点，句末补一个句号。"""
+    import re as _re
+
+    s = text.strip()
+    if not s:
+        return s
+    # 压掉多余空格，但保留单词间空格
+    s = _re.sub(r"[ \t]+", " ", s)
+    # 标点前不留空格，标点后补一个空格
+    s = _re.sub(r"\s+([,.!?;:])", r"\1", s)
+    s = _re.sub(r"([,.!?;:])(?=[A-Za-z])", r"\1 ", s)
+    # 首字母大写
+    if s[0].isalpha():
+        s = s[0].upper() + s[1:]
+    # 句末标点
+    if s[-1] not in ".!?。！？…":
+        s += "."
+    return s
 
 
 def to_16k(samples: np.ndarray, sr_in: int) -> np.ndarray:

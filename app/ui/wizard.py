@@ -88,6 +88,30 @@ class WaveformWidget(QWidget):
 # ---------------------------------------------------------------------------
 # 向导
 # ---------------------------------------------------------------------------
+def translate_tree(root) -> None:
+    """英文模式下把控件上的中文静态文案替换成英文（不动用户数据）。"""
+    from PySide6.QtWidgets import QAbstractButton, QGroupBox, QLabel
+
+    from app.i18n_tz import tz
+
+    for w in root.findChildren(QLabel):
+        w.setText(tz(w.text()))
+    for w in root.findChildren(QGroupBox):
+        w.setTitle(tz(w.title()))
+    for w in root.findChildren(QAbstractButton):
+        if w.text():
+            w.setText(tz(w.text()))
+    from PySide6.QtWidgets import QComboBox, QLineEdit, QPlainTextEdit, QTextEdit
+
+    for cls in (QLineEdit, QPlainTextEdit, QTextEdit):
+        for w in root.findChildren(cls):
+            if w.placeholderText():
+                w.setPlaceholderText(tz(w.placeholderText()))
+    for w in root.findChildren(QComboBox):
+        for i in range(w.count()):
+            w.setItemText(i, tz(w.itemText(i)))
+
+
 class NewCharacterWizard(QWizard):
     training_state = Signal(bool, str)
     training_begin = Signal()          # 训练即将开始：主程序可据此释放模型
@@ -101,15 +125,17 @@ class NewCharacterWizard(QWizard):
         self.state: dict[str, Any] = {}
         if character_id:
             self.state["cid"] = character_id
-        self.setWindowTitle("新建角色 — PrivateVoice_Ahee52" if not character_id
-                            else "训练 / 重训角色 — PrivateVoice_Ahee52")
+        from app import i18n
+
+        self.setWindowTitle(i18n.t("wiz.new_title") if not character_id
+                            else i18n.t("wiz.train_title"))
         self.resize(900, 660)
         self.setWizardStyle(QWizard.ModernStyle)
         self.setOption(QWizard.NoBackButtonOnStartPage, True)
-        self.setButtonText(QWizard.NextButton, "下一步")
-        self.setButtonText(QWizard.BackButton, "上一步")
-        self.setButtonText(QWizard.CancelButton, "取消")
-        self.setButtonText(QWizard.FinishButton, "完成")
+        self.setButtonText(QWizard.NextButton, i18n.t("wiz.next"))
+        self.setButtonText(QWizard.BackButton, i18n.t("wiz.back"))
+        self.setButtonText(QWizard.CancelButton, i18n.t("wiz.cancel"))
+        self.setButtonText(QWizard.FinishButton, i18n.t("wiz.finish"))
 
         self.p1 = BasicPage(self)
         self.p2 = AudioPage(self)
@@ -127,6 +153,10 @@ class NewCharacterWizard(QWizard):
             self.p1.greeting.setText(ch.greeting or "")
             self.state["name"] = ch.name
             self.setStartId(self._page_ids[1])
+        from PySide6.QtCore import QTimer
+
+        QTimer.singleShot(0, lambda: translate_tree(self))
+        self.currentIdChanged.connect(lambda _id: translate_tree(self))
 
     # -- 便捷 ----------------------------------------------------------
     @property
