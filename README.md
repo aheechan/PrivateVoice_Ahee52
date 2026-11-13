@@ -317,9 +317,6 @@ apartment after overtime feel less empty — it has done more than a TTS demo ev
 
 **May there be peace, and may companionship be everywhere.**
 
-## Support
-
-If this project saved you some time, you can [buy me a coffee](https://ko-fi.com/ahee52).
 
 ### Building the installer (maintainers)
 
@@ -330,3 +327,8 @@ powershell -ExecutionPolicy Bypass -File scripts\repo_check.ps1   # before pushi
 ```
 
 See [packaging/README.md](packaging/README.md) and [docs/MODELS.md](docs/MODELS.md).
+
+
+## Support
+
+If this project saved you some time, you can [buy me a coffee](https://ko-fi.com/ahee52).
