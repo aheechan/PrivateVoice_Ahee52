@@ -4,7 +4,7 @@
 
 ![PrivateVoice_Ahee52](docs/assets/readme_header.png)
 
-**A fully local voice companion for Chinese speakers: local ASR, local LLM, GPT-SoVITS v4 voice cloning, optional web lookup.**
+**A local-first voice companion. Chinese first — and it holds a natural conversation in English, Japanese and Korean too. Local ASR, local LLM, GPT-SoVITS v4 voice cloning, audio never leaves your machine.**
 
 Hold a hotkey, speak, and it answers in a cloned voice. Audio never leaves your machine.
 

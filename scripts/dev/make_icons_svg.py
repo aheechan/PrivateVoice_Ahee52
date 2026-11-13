@@ -135,7 +135,7 @@ def social(master: Image.Image) -> None:
            fill=(244, 240, 255))
     d.text((90, 392), "Local. Private. Yours.", font=font("segoeui.ttf", 33),
            fill=(188, 174, 218))
-    d.text((90, 450), "本地运行的中文情感陪伴器 · 语音克隆 · 全离线",
+    d.text((90, 450), "本地运行的语音陪伴器 · 多语可用 · 全离线",
            font=font("msyh.ttc", 25), fill=(154, 142, 188))
     im.convert("RGB").save(OUT / "social_preview.png")
     print("social exported")
@@ -149,7 +149,7 @@ def header(master: Image.Image) -> None:
     d = ImageDraw.Draw(im)
     d.text((300, 128), "PrivateVoice_Ahee52", font=font("segoeuib.ttf", 66),
            fill=(244, 240, 255))
-    d.text((304, 222), "本地运行的中文情感陪伴器", font=font("msyh.ttc", 30),
+    d.text((304, 222), "本地运行的语音陪伴器", font=font("msyh.ttc", 30),
            fill=(186, 172, 216))
     d.text((304, 268), "Local · Private · Companion", font=font("segoeui.ttf", 24),
            fill=(150, 138, 184))
