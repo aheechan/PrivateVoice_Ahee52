@@ -13,7 +13,6 @@ import threading
 from pathlib import Path
 
 from PySide6.QtCore import QObject, Qt, Signal
-from PySide6.QtGui import QIcon
 from PySide6.QtNetwork import QLocalServer, QLocalSocket
 from PySide6.QtWidgets import QApplication, QMessageBox, QSystemTrayIcon
 
@@ -590,7 +589,15 @@ class MainController(QObject):
         self._settings = None
 
     def _on_settings_applied(self) -> None:
+        old_asr = str(self.config.get("asr.model", "paraformer-zh"))
         self.config.save()
+        new_asr = str(self.config.get("asr.model", "paraformer-zh"))
+        if new_asr != old_asr:
+            try:
+                self.pipeline.reload_asr()
+                self.log.info("ASR 已按新配置重新加载：%s", new_asr)
+            except Exception as exc:  # noqa: BLE001
+                self.log.error("ASR 重新加载失败：%s", exc, exc_info=True)
         msg = self.reload_hotkey()
         self.log.info("设置已保存；%s", msg)
         if self._main is not None:
@@ -716,32 +723,7 @@ def install_autostart(enabled: bool) -> None:
         logging.getLogger("voicelab").warning("写入开机自启失败", exc_info=True)
 
 
-def app_icon_path() -> Path:
-    for name in ("app_256.png", "app_64.png", "app.ico"):
-        p = ROOT / "assets" / name
-        if p.exists():
-            return p
-    return ROOT / "assets" / "app.ico"
-
-
-def _install_excepthook() -> None:
-    """未捕获异常写进日志并提示用户，避免 pythonw 下无声退出。"""
-    def hook(exc_type, exc, tb) -> None:
-        logging.getLogger("voicelab").error("未捕获异常", exc_info=(exc_type, exc, tb))
-        try:
-            QMessageBox.critical(
-                None, APP_NAME,
-                f"程序遇到未处理的错误：\n\n{exc_type.__name__}: {exc}\n\n"
-                f"详情见 logs\\app.log")
-        except Exception:
-            pass
-        sys.__excepthook__(exc_type, exc, tb)
-
-    sys.excepthook = hook
-
-
 def main() -> int:
-    _install_excepthook()
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
 
@@ -773,8 +755,7 @@ def main() -> int:
     if any(ord(ch) > 127 for ch in str(ROOT)):
         log.warning("安装路径包含非 ASCII 字符：%s", ROOT)
 
-    _icon = QIcon(str(app_icon_path()))
-    app.setWindowIcon(_icon if not _icon.isNull() else make_icon("idle"))
+    app.setWindowIcon(make_icon("idle"))
     try:
         from app.ui import theme
         theme.apply(app)

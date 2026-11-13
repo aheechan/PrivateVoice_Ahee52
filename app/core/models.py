@@ -38,31 +38,24 @@ COMMON: list[Asset] = [
     Asset("vocoder.pth",
           f"{HF}/lj1995/GPT-SoVITS/resolve/main/gsv-v4-pretrained/vocoder.pth",
           "GPT-SoVITS/GPT_SoVITS/pretrained_models/gsv-v4-pretrained/vocoder.pth", 55),
-    Asset("chinese-roberta-wwm-ext-large/pytorch_model.bin",
-          f"{HF}/hfl/chinese-roberta-wwm-ext-large/resolve/main/pytorch_model.bin",
-          "GPT-SoVITS/GPT_SoVITS/pretrained_models/chinese-roberta-wwm-ext-large/pytorch_model.bin", 621),
+    Asset("chinese-roberta-wwm-ext-large/model.safetensors",
+          f"{HF}/hfl/chinese-roberta-wwm-ext-large/resolve/main/model.safetensors",
+          "GPT-SoVITS/GPT_SoVITS/pretrained_models/chinese-roberta-wwm-ext-large/model.safetensors", 621),
     Asset("chinese-hubert-base/pytorch_model.bin",
           f"{HF}/TencentGameMate/chinese-hubert-base/resolve/main/pytorch_model.bin",
           "GPT-SoVITS/GPT_SoVITS/pretrained_models/chinese-hubert-base/pytorch_model.bin", 181),
 ]
 
-# 中文 ASR 由 FunASR 在首次识别时自行下载到 models_cache/modelscope/models/，
-# 这里不再重复下载（单个 model.pt 无法被 AutoModel 使用）。
-ASR_ZH: list[Asset] = []
+ASR_ZH: list[Asset] = [
+    Asset("paraformer-zh",
+          f"{HF}/funasr/paraformer-zh/resolve/main/model.pt",
+          "models_cache/funasr/paraformer-zh/model.pt", 840),
+]
 
 ASR_EN: list[Asset] = [
-    Asset("faster-whisper-small/model.bin",
+    Asset("whisper-small-ct2",
           f"{HF}/Systran/faster-whisper-small/resolve/main/model.bin",
           "models_cache/whisper/faster-whisper-small/model.bin", 484),
-    Asset("faster-whisper-small/config.json",
-          f"{HF}/Systran/faster-whisper-small/resolve/main/config.json",
-          "models_cache/whisper/faster-whisper-small/config.json", 0),
-    Asset("faster-whisper-small/tokenizer.json",
-          f"{HF}/Systran/faster-whisper-small/resolve/main/tokenizer.json",
-          "models_cache/whisper/faster-whisper-small/tokenizer.json", 2),
-    Asset("faster-whisper-small/vocabulary.txt",
-          f"{HF}/Systran/faster-whisper-small/resolve/main/vocabulary.txt",
-          "models_cache/whisper/faster-whisper-small/vocabulary.txt", 1),
 ]
 
 
@@ -75,36 +68,19 @@ def missing(root: Path, kind: str = "zh") -> list[Asset]:
 
 
 def _download(url: str, dest: Path, on_progress: Callable[[int, int], None] | None = None,
-              timeout: float = 60.0, retries: int = 30) -> None:
-    """带断点续传与重试的下载（大文件网络容易中断）。"""
+              timeout: float = 60.0) -> None:
     dest.parent.mkdir(parents=True, exist_ok=True)
     tmp = dest.with_suffix(dest.suffix + ".part")
-    total = 0
-    for attempt in range(1, retries + 1):
-        have = tmp.stat().st_size if tmp.exists() else 0
-        headers = {"Range": f"bytes={have}-"} if have else {}
-        try:
-            with httpx.stream("GET", url, headers=headers, follow_redirects=True,
-                              timeout=httpx.Timeout(timeout, read=timeout)) as r:
-                if r.status_code not in (200, 206):
-                    r.raise_for_status()
-                if not total:
-                    cl = int(r.headers.get("content-length") or 0)
-                    total = have + cl if r.status_code == 206 else cl
-                with tmp.open("ab") as f:
-                    for chunk in r.iter_bytes(1 << 20):
-                        f.write(chunk)
-                        have += len(chunk)
-                        if on_progress:
-                            on_progress(have, total)
-            if total and tmp.stat().st_size < total:
-                continue
-            os.replace(tmp, dest)
-            return
-        except Exception:
-            if attempt == retries:
-                raise
-            continue
+    with httpx.stream("GET", url, follow_redirects=True, timeout=timeout) as r:
+        r.raise_for_status()
+        total = int(r.headers.get("content-length") or 0)
+        done = 0
+        with tmp.open("wb") as f:
+            for chunk in r.iter_bytes(1 << 20):
+                f.write(chunk)
+                done += len(chunk)
+                if on_progress:
+                    on_progress(done, total)
     os.replace(tmp, dest)
 
 

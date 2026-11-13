@@ -108,9 +108,13 @@ class Provider:
         return mask_key(self.api_key)
 
     def url(self, path: str = "/chat/completions") -> str:
-        base = self.base_url.rstrip("/")
+        """容忍各种写法：http://host:8080、/v1、/v1/、甚至整条 completions URL。"""
+        base = (self.base_url or "").strip().rstrip("/")
+        for suffix in ("/chat/completions", "/completions"):
+            if base.endswith(suffix):
+                base = base[: -len(suffix)]
         if not base.endswith("/v1"):
-            base = base + "/v1"
+            base += "/v1"
         return base + path
 
     def as_dict(self) -> dict[str, Any]:
@@ -139,7 +143,15 @@ class ProviderStore:
 
     def active(self) -> list[Provider]:
         items = [p for p in self.list() if p.enabled and p.base_url]
-        return sorted(items, key=lambda p: (p.priority, p.name))
+        if items:
+            return sorted(items, key=lambda p: (p.priority, p.name))
+        # 兼容老配置：只在 llm.base_url / llm.model 里填了地址
+        base = str(self.config.get("llm.base_url", "") or "").strip()
+        if base:
+            return [Provider(id="config", name="config", base_url=base,
+                             model=str(self.config.get("llm.model", "") or ""),
+                             api_key_enc=str(self.config.get("llm.api_key_enc", "") or ""))]
+        return []
 
     def get(self, pid: str) -> Provider | None:
         return next((p for p in self.list() if p.id == pid), None)
@@ -368,3 +380,29 @@ __all__ = [
     "Provider", "ProviderStore", "LLMClient", "LLMDelta", "ChatResult", "LLMError",
     "dpapi_encrypt", "dpapi_decrypt", "mask_key", "DEFAULT_THINKING_BODY",
 ]
+
+
+def try_provider(provider: "Provider", timeout: float = 15.0) -> tuple[bool, str]:
+    """Non-stream ping used by diagnostics and the self-test."""
+    import httpx
+
+    headers = {"Content-Type": "application/json"}
+    key = provider.api_key
+    if key:
+        headers["Authorization"] = f"Bearer {key}"
+    body = {"model": provider.model,
+            "messages": [{"role": "user", "content": "ping"}],
+            "max_tokens": 8, "stream": False}
+    url = provider.url()
+    try:
+        r = httpx.post(url, json=body, headers=headers, timeout=timeout)
+    except Exception as exc:  # noqa: BLE001
+        return False, f"connect failed: {type(exc).__name__}: {exc}"
+    if r.status_code != 200:
+        return False, f"HTTP {r.status_code}: {r.text[:200]}"
+    try:
+        data = r.json()
+        text = data["choices"][0]["message"]["content"]
+        return True, f"ok, reply={text!r}"
+    except Exception:
+        return False, f"unexpected body: {r.text[:160]}"

@@ -47,11 +47,12 @@ class Player:
     def __init__(self, device: int | None = None, samplerate: int | None = None,
                  blocksize_ms: int = 30, sentence_gap_ms: int = 80,
                  limiter_dbtp: float = -1.0):
-        self.device = device
+        self.config_device = device          # 用户选择：None = 系统默认
+        self.device = self._resolve_output(device)
         # 用设备自己的默认采样率，避免 Windows 再插一层系统重采样
         if samplerate is None:
             try:
-                info = sd.query_devices(device if device is not None
+                info = sd.query_devices(self.device if self.device is not None
                                         else sd.default.device[1])
                 samplerate = int(info["default_samplerate"]) or 48000
             except Exception:
@@ -78,14 +79,37 @@ class Player:
         self.gap_ms = max(0, int(ms))
         self.gap = np.zeros(int(self.samplerate * self.gap_ms / 1000), np.float32)
 
+    def _resolve_output(self, device: int | None) -> int | None:
+        """device=None 表示“系统默认”：每次实时解析，避免缓存过期。"""
+        if device is not None:
+            try:
+                sd.query_devices(device)
+                return device
+            except Exception:
+                pass
+        try:
+            info = sd.query_devices(kind="output")
+            idx = sd.default.device[1]
+            # 若默认设备不可用，退回 query 到的设备索引
+            try:
+                sd.query_devices(idx)
+                return idx
+            except Exception:
+                return info.get("index")
+        except Exception:
+            return None
+
     def set_device(self, device: int | None) -> None:
-        self.device = device
+        self.config_device = device
+        self.device = self._resolve_output(device)
 
     def _open(self) -> None:
-        if self._stream is not None:
-            return
         """优先 WASAPI：MME 在欠载时会把上一块重复播出（听起来像"某个字重复"），
         WASAPI 则是纯静音补齐。失败再退回系统默认。"""
+        if self._stream is not None:
+            return
+        # 每次开流都重新解析“系统默认”，用户中途切换设备也能跟上
+        self.device = self._resolve_output(self.config_device)
         candidates: list[dict] = []
         try:
             hostapis = sd.query_hostapis()

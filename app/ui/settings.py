@@ -44,6 +44,7 @@ class HotkeyEdit(QPushButton):
         super().__init__(parent)
         self.spec = spec
         self._capturing = False
+        self._pending_mod = ""
         self.setFocusPolicy(Qt.StrongFocus)
         self.setMinimumWidth(220)
         self._refresh()
@@ -65,10 +66,18 @@ class HotkeyEdit(QPushButton):
 
     def _finish(self, cancelled: bool = False) -> None:
         self._capturing = False
+        self._pending_mod = ""
         self.releaseKeyboard()
         self._refresh()
         if not cancelled:
             self.captured.emit(self.spec)
+
+    def _commit_pending_mod(self) -> None:
+        spec = getattr(self, "_pending_mod", "")
+        if not spec:
+            return
+        self.spec = spec
+        self._finish()
 
     def keyPressEvent(self, event) -> None:  # noqa: N802
         if not self._capturing:
@@ -88,10 +97,19 @@ class HotkeyEdit(QPushButton):
         if mods & Qt.MetaModifier:
             names.append("win")
         if key in _MODIFIER_KEYS:
-            # 只按了修饰键本身（例如单独按 shift）
-            self.spec = _MODIFIER_KEYS[key]
-            self._finish()
+            # 修饰键可能是组合键的前半段：先挂起，400ms 内没有主键再当作单键
+            self._pending_mod = _MODIFIER_KEYS[key]
+            if getattr(self, "_mod_timer", None) is None:
+                from PySide6.QtCore import QTimer
+
+                self._mod_timer = QTimer(self)
+                self._mod_timer.setSingleShot(True)
+                self._mod_timer.timeout.connect(self._commit_pending_mod)
+            self._mod_timer.start(400)
             return
+        if getattr(self, "_mod_timer", None) is not None:
+            self._mod_timer.stop()
+        self._pending_mod = ""
         if Qt.Key_A <= key <= Qt.Key_Z:
             main = chr(key).lower()
         elif Qt.Key_0 <= key <= Qt.Key_9:
@@ -238,7 +256,7 @@ class SettingsDialog(QDialog):
 
     def _update_asr_hint(self) -> None:
         model = self.asr_box.currentData()
-        whisper_dir = Path(self.config.path_of("model_cache")) / "whisper" / "faster-whisper-small"
+        whisper_dir = self.config.root / "models_cache" / "whisper" / "faster-whisper-small"
         has_whisper = (whisper_dir / "model.bin").exists()
         if str(model).startswith("whisper"):
             if has_whisper:

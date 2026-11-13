@@ -9,8 +9,8 @@
 按住热键说话，它用克隆出来的声音回答你。音频不出本机。
 
 > 作者：**Ahee52**
-> 状态：**1.1.1**
-> 整合包：**PrivateVoice_Ahee52-1.1.1**，1 个安装器 + 7 个分卷，共 11.4 GB
+> 状态：**1.0.4**
+> 整合包：**PrivateVoice_Ahee52-1.0.4**，1 个安装器 + 7 个分卷，共 11.5 GB
 > 安装目录：`%ProgramFiles%\PrivateVoice_Ahee52`
 > 配置与日志：`<安装目录>\config.yaml`、`<安装目录>\logs\app.log`
 > 模型位置（安装版）：`<安装目录>\GPT-SoVITS\GPT_SoVITS\pretrained_models`

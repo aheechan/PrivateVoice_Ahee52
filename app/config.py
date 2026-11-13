@@ -197,10 +197,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     },
     # ---------------- Stage 3：对话链路 ----------------
     "asr": {
-        "model": "paraformer-zh",      # paraformer-zh | whisper
-        "language": "auto",            # whisper 路线：auto / en / ja / ko / zh
-        "whisper_size": "small",
-        "whisper_root": "",            # 留空则用安装目录 models_cache/whisper
+        "model": "paraformer-zh",
         "device": "cuda",
         "trim_head_ms": 100,
         "trim_tail_ms": 100,
