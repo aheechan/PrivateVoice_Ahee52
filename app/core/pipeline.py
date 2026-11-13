@@ -622,22 +622,31 @@ class Pipeline:
                     self._web_sources = [r["url"] for r in results]
             except Exception as exc:  # noqa: BLE001
                 logger.warning("联网检索失败（忽略）：%s", exc)
+        style = self._style()
+        if style.get("hint"):
+            sys_text += f"\n\n【本轮情绪】{style['name']}：{style['hint']}"
+
+        # 语言指令必须是最后一条，且用目标语言 + 中文双重强调，
+        # 否则模型会被中文模板/情绪提示拉回中文（英文尤其明显）。
         lang = self._reply_language(user_text)
         lang_rule = {
-            "en": "Reply ONLY in natural English. Keep spaces between words, use normal "
-                  "punctuation, 1-3 short sentences.",
+            "en": ("The user just spoke ENGLISH. You MUST answer in English only. "
+                   "必须用英文回答，绝对不要使用中文。Keep spaces between words, "
+                   "use normal punctuation, 1-3 short sentences."),
             "ja": "日本語でだけ返答してください。自然な句読点を使い、1〜3文で短く。",
             "ko": "한국어로만 답하세요. 자연스러운 문장부호를 사용하고 1~3문장으로 짧게.",
         }.get(lang)
         if lang_rule:
-            sys_text += f"\n\n【语言】{lang_rule}\nDo not mix Chinese."
-        style = self._style()
-        if style.get("hint"):
-            sys_text += f"\n\n【本轮情绪】{style['name']}：{style['hint']}"
+            sys_text += f"\n\n【语言 / Language】{lang_rule}"
         msgs = [{"role": "system", "content": sys_text.strip()}]
         budget = int(self.config.get("llm.token_budget", 1500))
         msgs += self.history.context(budget_chars=budget)
-        msgs.append({"role": "user", "content": user_text})
+        # 用户消息尾部再挂一次语言要求（模型对 user 轮更敏感），
+        # 历史里仍保存原始文本，不污染上下文。
+        suffix = {"en": "\n\n(Please answer in English only.)",
+                  "ja": "\n\n(日本語で答えてください。)",
+                  "ko": "\n\n(한국어로 답해 주세요.)"}.get(lang, "")
+        msgs.append({"role": "user", "content": user_text + suffix})
         return msgs
 
     def _run_turn(self, samples: np.ndarray | None, sr: int,
