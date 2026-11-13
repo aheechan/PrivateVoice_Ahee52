@@ -34,3 +34,6 @@ nltk_data/
 config.yaml
 *.log
 *.pyc
+release/
+installer_build.iss
+docs/pytest.log

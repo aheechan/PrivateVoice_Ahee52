@@ -1,0 +1,39 @@
+# NOTICE
+
+PrivateVoice_Ahee52 bundles or depends on the following third-party components.
+This file summarises attribution; each component keeps its own license.
+
+## Runtime libraries
+
+| Component | License | Use |
+|---|---|---|
+| PySide6 / Qt for Python | LGPLv3 (dynamic linking) | Desktop UI |
+| NumPy | BSD-3-Clause | Numerics |
+| soundfile / libsndfile | BSD-3-Clause / LGPL-2.1 | Audio I/O |
+| sounddevice / PortAudio | MIT | Playback & capture |
+| httpx | BSD-3-Clause | HTTP client |
+| PyYAML | MIT | Config |
+| soxr | LGPL-2.1 | Resampling |
+| pyloudnorm | MIT | Loudness alignment |
+| faster-whisper | MIT | English / multilingual ASR |
+| CTranslate2 | MIT | Whisper inference |
+| FunASR | MIT | Chinese ASR |
+| ModelScope | Apache-2.0 | Model hosting / cache |
+| GPT-SoVITS | MIT | Voice cloning and synthesis |
+
+## Model weights (downloaded separately, not in this repository)
+
+| Model | Publisher | License |
+|---|---|---|
+| GPT-SoVITS v4 (`s1v3.ckpt`, `s2Gv4.pth`, `vocoder.pth`) | RVC-Boss | MIT |
+| chinese-roberta-wwm-ext-large | HFL | MIT |
+| chinese-hubert-base | Tencent GameMate | MIT |
+| FunASR paraformer-zh / ct-punc / campplus | ModelScope iic | MIT / Apache-2.0 |
+| faster-whisper small (CT2 conversion) | Systran / OpenAI | MIT |
+
+Model files are never committed to this repository. See `docs/MODELS.md` for download locations.
+
+## Voice and likeness
+
+Voice cloning requires explicit, revocable consent from the voice owner. Do not use this project
+to impersonate people or to create fraudulent, harassing, sexual or misleading content.

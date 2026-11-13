@@ -75,6 +75,22 @@ installer.iss      Inno Setup packaging script
 
 ---
 
+
+## Repository layout
+
+```text
+app/            pipeline, ASR / LLM / TTS / player, training, UI, i18n
+tools/          shipped helpers (run_upstream, selftest, llm_check, mic_check, check_character)
+packaging/      Inno Setup script + Chinese language file (installer build)
+scripts/        build_installer.ps1, make_update_zip.ps1, repo_check.ps1
+scripts/dev/    one-off probes and experiments (not shipped)
+docs/           stage reports, MODELS.md, screenshots (docs/assets)
+tests/          unit tests
+CHANGELOG.md    version history
+NOTICE          third-party attribution
+config.example.yaml
+```
+
 ## Two ways to use it
 
 | Route | For | Requires |
@@ -300,3 +316,17 @@ If it can keep an elderly person company, help someone who cannot type, or make 
 apartment after overtime feel less empty — it has done more than a TTS demo ever could.
 
 **May there be peace, and may companionship be everywhere.**
+
+## Support
+
+If this project saved you some time, you can [buy me a coffee](https://ko-fi.com/ahee52).
+
+### Building the installer (maintainers)
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\build_installer.ps1
+powershell -ExecutionPolicy Bypass -File scripts\make_update_zip.ps1 -Version 1.0.5
+powershell -ExecutionPolicy Bypass -File scripts\repo_check.ps1   # before pushing
+```
+
+See [packaging/README.md](packaging/README.md) and [docs/MODELS.md](docs/MODELS.md).

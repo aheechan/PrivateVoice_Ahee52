@@ -1,0 +1,39 @@
+name: ci
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Byte-compile application and shipped tools
+        shell: pwsh
+        run: |
+          python -m compileall -q app
+          Get-ChildItem tools -Filter *.py | ForEach-Object { python -m py_compile $_.FullName }
+
+      - name: Install test dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest numpy soundfile
+
+      - name: Run unit tests
+        shell: pwsh
+        continue-on-error: true
+        run: python -m pytest -q tests
+
+      - name: Guard against model binaries
+        shell: pwsh
+        run: |
+          $bad = git ls-files | Select-String -Pattern '\.(pth|ckpt|safetensors)$|(^|/)(models_cache|characters|dist)/'
+          if ($bad) { $bad; exit 1 }

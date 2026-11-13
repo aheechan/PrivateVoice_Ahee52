@@ -75,6 +75,22 @@ installer.iss      Inno Setup 打包脚本
 
 ---
 
+
+## 仓库结构
+
+```text
+app/            管线、ASR / LLM / TTS / 播放、训练、界面、多语言
+tools/          随包工具（run_upstream、selftest、llm_check、mic_check、check_character）
+packaging/      Inno Setup 脚本与中文语言文件（安装包构建）
+scripts/        build_installer.ps1、make_update_zip.ps1、repo_check.ps1
+scripts/dev/    一次性探针与实验脚本（不随包分发）
+docs/           阶段报告、MODELS.md、截图（docs/assets）
+tests/          单元测试
+CHANGELOG.md    版本历史
+NOTICE          第三方组件归属
+config.example.yaml
+```
+
 ## 两种使用方式
 
 | 路线 | 适合谁 | 需要什么 |
@@ -313,3 +329,13 @@ CTranslate2（MIT）、PySide6（LGPLv3，动态链接）、ModelScope（Apache-
 那它就比「一个语音合成 Demo」更有意义。
 
 **愿世界和平，让陪伴无处不在。**
+
+### 构建安装包（维护者）
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\build_installer.ps1
+powershell -ExecutionPolicy Bypass -File scripts\make_update_zip.ps1 -Version 1.0.5
+powershell -ExecutionPolicy Bypass -File scripts\repo_check.ps1   # 推送前自检
+```
+
+详见 [packaging/README.md](packaging/README.md) 与 [docs/MODELS.md](docs/MODELS.md)。
