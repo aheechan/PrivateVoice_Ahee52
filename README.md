@@ -107,7 +107,7 @@ The packaged build ships with a default voice and every model — install and ta
 | Item | Minimum | Recommended |
 |---|---|---|
 | OS | Windows 10 x64 (21H2+) | Windows 11 x64 |
-| GPU | NVIDIA RTX 2060 / 6 GB VRAM | **RTX 3090 / 4070 Ti / 5070 Ti, 16–24 GB** |
+| GPU | NVIDIA RTX 20-series or newer, 8 GB+ VRAM (smaller cards not tested) | **RTX 30-series and above, 8 GB+** — verified running smoothly |
 | Driver | CUDA 12.8 capable (≥ 570.x) | latest Game Ready / Studio |
 | RAM | 16 GB | 32 GB |
 | Disk | 15 GB free | 30 GB (multiple characters + training artifacts) |
@@ -116,8 +116,8 @@ The packaged build ships with a default voice and every model — install and ta
 
 Notes:
 
-- **Inference** needs roughly 6–8 GB VRAM. **Training** is comfortable on 24 GB; on 16 GB the app
-  selects the balanced profile and lowers the batch size automatically.
+- **Inference** is comfortable from 8 GB VRAM upwards; **training** is happiest at 16 GB or more
+  (the app picks a lighter profile and lowers the batch size when VRAM is tight).
 - CPU-only inference is not supported (30–60 s per sentence, and v4 relies on GPU kernels).
 - If VRAM is insufficient, training reports it instead of failing silently.
 
@@ -248,6 +248,11 @@ Both may be installed; only the selected one loads. Choose whisper if you code-s
 
 ## Features
 
+- **Millisecond-level responsiveness**: hotkey and VAD react in milliseconds, playback starts on the
+  first audio chunk instead of waiting for the whole sentence
+- **Streaming TTS with sentence prefetch**: the next sentence is synthesized while the current one plays
+- **~0.3 s speech recognition** after warm-up; end-to-end reply typically 3–4 s with a local 9B model
+- **Instant interruption**: hold the key again and it stops mid-sentence
 - **Push-to-talk**: default `shift+a`, configurable to any combo (a single modifier works too)
 - **Fully local pipeline**: ASR → LLM → GPT-SoVITS v4, no audio uploaded
 - **zh / en / ja / ko / yue** speech, language detected per sentence
