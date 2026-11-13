@@ -604,11 +604,15 @@ class MainController(QObject):
         self.config.save()
         new_asr = str(self.config.get("asr.model", "paraformer-zh"))
         if new_asr != old_asr:
+            self.log.info("ASR 已切换为 %s，准备自动重启以生效", new_asr)
             try:
-                self.pipeline.reload_asr()
-                self.log.info("ASR 已按新配置重新加载：%s", new_asr)
-            except Exception as exc:  # noqa: BLE001
-                self.log.error("ASR 重新加载失败：%s", exc, exc_info=True)
+                self.tray.notify("PrivateVoice_Ahee52",
+                                 "语音识别模型已切换，正在重启程序…", 2500)
+            except Exception:
+                pass
+            from PySide6.QtCore import QTimer
+
+            QTimer.singleShot(1200, restart_app)
         msg = self.reload_hotkey()
         self.log.info("设置已保存；%s", msg)
         if self._main is not None:
