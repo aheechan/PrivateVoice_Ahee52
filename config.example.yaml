@@ -1,0 +1,79 @@
+# PrivateVoice_Ahee52 — example configuration
+# Copy to config.yaml in the install (or repository) root and adjust.
+# Paths are resolved relative to this file's parent when left as shown.
+
+paths:
+  models: GPT-SoVITS/GPT_SoVITS/pretrained_models
+  gpt_sovits: GPT-SoVITS
+  characters: characters
+  logs: logs
+  datasets: datasets
+  assets: assets
+  results: results
+  model_cache: models
+  nltk_data: nltk_data
+
+hotkey:
+  spec: shift+a          # any combination: ctrl+alt+k, f9, shift+a …
+
+audio:
+  input_device: null     # null = system default
+  output_device: null    # null = system default (resolved on every stream open)
+  blocksize_ms: 80
+  save_tts: true
+  tts_ttl_minutes: 10
+  keep_tts: 200
+
+tts:
+  speed: 0.96
+  top_k: 5
+  top_p: 1.0
+  temperature: 0.6
+  repetition_penalty: 1.9   # higher = less dragging/repeating
+  sample_steps: 4
+  max_sec_per_char: 0.8
+  sentence_gap_ms: 130
+
+asr:
+  model: paraformer-zh      # paraformer-zh | whisper
+  language: auto            # whisper route only: auto | en | zh | ja | ko
+  whisper_size: small
+  whisper_root: ""          # empty = <root>/models_cache/whisper
+  device: cuda
+
+llm:
+  connect_timeout_ms: 3000
+  first_token_timeout_ms: 5000
+  total_timeout_ms: 30000
+  default_style: gentle
+  # Optional shortcut: used when providers[] is empty
+  base_url: "http://127.0.0.1:8080/v1"   # llama.cpp / Ollama / vLLM / LM Studio
+  model: "Qwen3.5-9B"
+  providers:
+    - id: local
+      name: local
+      base_url: "http://127.0.0.1:8080/v1"
+      model: "Qwen3.5-9B"
+      priority: 10
+      enabled: true
+      timeout_ms: 30000
+      supports_stream: true
+      extra_body: {}
+      # api_key_enc is written by the app (DPAPI-encrypted); leave empty here
+
+ui:
+  language: zh             # zh | en
+  log_level: INFO
+  autostart: false
+  first_run_done: false
+
+web:
+  enabled: false
+  always: false
+  max_results: 4
+  filler: "稍等，让我查一下。"
+
+training:
+  s2_version: v4
+  lora_rank: 32
+  profile: balanced
