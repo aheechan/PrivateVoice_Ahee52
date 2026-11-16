@@ -4,7 +4,7 @@
 
 ![PrivateVoice_Ahee52](docs/assets/readme_header.png)
 
-**完全本地运行的中文情感陪伴器：本地 ASR、本地大模型、GPT-SoVITS v4 音色克隆，可选联网检索。**
+**任意定制的声音，住在这台电脑里。用你有权使用的音色，说你习惯的语言——本地识别、本地大模型、GPT-SoVITS v4 音色克隆，音频不出本机。**
 
 按住热键说话，它用克隆出来的声音回答你。音频不出本机。
 
@@ -75,6 +75,22 @@ installer.iss      Inno Setup 打包脚本
 
 ---
 
+
+## 仓库结构
+
+```text
+app/            管线、ASR / LLM / TTS / 播放、训练、界面、多语言
+tools/          随包工具（run_upstream、selftest、llm_check、mic_check、check_character）
+packaging/      Inno Setup 脚本与中文语言文件（安装包构建）
+scripts/        build_installer.ps1、make_update_zip.ps1、repo_check.ps1
+scripts/dev/    一次性探针与实验脚本（不随包分发）
+docs/           阶段报告、MODELS.md、截图（docs/assets）
+tests/          单元测试
+CHANGELOG.md    版本历史
+NOTICE          第三方组件归属
+config.example.yaml
+```
+
 ## 两种使用方式
 
 | 路线 | 适合谁 | 需要什么 |
@@ -91,7 +107,7 @@ installer.iss      Inno Setup 打包脚本
 | 项目 | 最低 | 推荐 |
 |---|---|---|
 | 操作系统 | Windows 10 x64（21H2+） | Windows 11 x64 |
-| 显卡 | NVIDIA RTX 2060 / 6 GB 显存 | **RTX 3090 / 4070 Ti / 5070 Ti，16–24 GB** |
+| 显卡 | NVIDIA RTX 20 系及以上、8 GB+ 显存（更小显存未做测试） | **RTX 30 系及以上、8 GB+** —— 已验证流畅运行 |
 | 驱动 | 支持 CUDA 12.8（≥ 570.x） | 最新 Game Ready / Studio |
 | 内存 | 16 GB | 32 GB |
 | 磁盘 | 15 GB 空闲 | 30 GB（多角色 + 训练中间产物） |
@@ -100,7 +116,7 @@ installer.iss      Inno Setup 打包脚本
 
 说明：
 
-- **推理**约需 6–8 GB 显存；**训练**在 24 GB 上最稳，16 GB 会自动选择「均衡」档并降低 batch。
+- **推理**在 8 GB 显存以上比较从容；**训练**建议 16 GB 以上（显存紧张时程序会自动降档、减小 batch）。
 - 不支持纯 CPU 推理（约 30–60 秒/句，且 v4 依赖 GPU 算子）。
 - 显存不足时训练会明确提示，不会静默失败。
 
@@ -247,6 +263,10 @@ asr:
 
 ## 功能概览
 
+- **毫秒级响应**：热键与静音检测毫秒级触发，音频一出第一块就开始播放，不等整句合成完
+- **流式合成 + 句子预取**：当前句在播时，下一句已在后台合成
+- **约 0.3 秒语音识别**（预热后）；本地 9B 模型下整轮回复通常 3–4 秒
+- **随时打断**：再按一次热键，说到一半也能停
 - **按住说话**：默认 `shift+a`，可改成任意组合键（也支持单按 Shift）
 - **全本地链路**：ASR → LLM → GPT-SoVITS v4，音频不上传
 - **中 / 英 / 日 / 韩 / 粤** 朗读，按句子自动判定语言
@@ -313,3 +333,20 @@ CTranslate2（MIT）、PySide6（LGPLv3，动态链接）、ModelScope（Apache-
 那它就比「一个语音合成 Demo」更有意义。
 
 **愿世界和平，让陪伴无处不在。**
+
+### 构建安装包（维护者）
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\build_installer.ps1
+powershell -ExecutionPolicy Bypass -File scripts\make_update_zip.ps1 -Version 1.0.5
+powershell -ExecutionPolicy Bypass -File scripts\repo_check.ps1   # 推送前自检
+```
+
+详见 [packaging/README.md](packaging/README.md) 与 [docs/MODELS.md](docs/MODELS.md)。
+
+
+---
+
+## 支持
+
+如果这个项目帮你省了点时间，可以[请我喝杯咖啡](https://ko-fi.com/ahee52)。
