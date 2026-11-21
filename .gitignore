@@ -27,3 +27,11 @@ tools/vs/
 dist/
 
 build/
+characters/
+results/
+models_cache/
+config.yaml
+nltk_data/
+installer_build.iss
+*.log
+*.pyc
